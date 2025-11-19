@@ -1,0 +1,871 @@
+<!-- Portfolio Summary -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Investment Portfolios</h3>
+    </div>
+
+    {% if portfolios %}
+    <div style="overflow-x: auto;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Current Value</th>
+                    <th>Monthly Contribution</th>
+                    <th>Mean Return %</th>
+                    <th>Start Date</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for portfolio in portfolios %}
+                <tr>
+                    <td><strong>{{ portfolio.name }}</strong></td>
+                    <td><span class="badge badge-primary">{{ portfolio.type }}</span></td>
+                    <td style="color: var(--success); font-weight: 600; font-family: var(--font-mono);">{{ currency.symbol }}{{ "{:,.2f}".format(portfolio.current_value) }}</td>
+                    <td style="font-family: var(--font-mono);">{{ currency.symbol }}{{ "{:,.2f}".format(portfolio.monthly_contribution) }}</td>
+                    <td style="font-family: var(--font-mono);">{{ "{:.2f}".format(portfolio.mean_return_percent) }}%</td>
+                    <td>{{ portfolio.start_date.strftime('%Y-%m-%d') }}</td>
+                    <td>
+                        {% if portfolio.active %}
+                        <span class="badge badge-success">Active</span>
+                        {% else %}
+                        <span class="badge badge-danger">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="editPortfolio('{{ portfolio._id }}')"><i class="ri-edit-line"></i></button>
+                        <button class="btn btn-sm btn-success" onclick="recalculatePortfolio('{{ portfolio._id }}')" title="Recalculate value from stocks"><i class="ri-refresh-line"></i></button>
+                        <button class="btn btn-sm btn-danger" onclick="deletePortfolio('{{ portfolio._id }}')"><i class="ri-delete-bin-line"></i></button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="text-align: center; color: var(--text-light); padding: 2rem;">No investment portfolios yet. Click the button above to add your first portfolio.</p>
+    {% endif %}
+</div>
+
+<!-- Stock Holdings -->
+<div class="card" id="stockHoldingsCard" style="display: none;">
+    <div class="card-header">
+        <h3 class="card-title">Stock Holdings</h3>
+        <select id="stockPortfolioFilter" class="form-control" style="width: auto;" onchange="filterStocks()">
+            <option value="">All Portfolios</option>
+        </select>
+    </div>
+    <div style="overflow-x: auto;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Ticker</th>
+                    <th>Name</th>
+                    <th>Shares</th>
+                    <th>Avg Price</th>
+                    <th>Current Price</th>
+                    <th>Total Value</th>
+                    <th>Gain/Loss</th>
+                    <th>Portfolio</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="stocksTableBody">
+                <!-- Populated by JavaScript -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Investment Growth Chart -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Projected Growth</h3>
+        <select id="projectionMonths" class="form-control" style="width: auto;">
+            <option value="12">12 Months</option>
+            <option value="24">24 Months</option>
+            <option value="60">5 Years</option>
+            <option value="120">10 Years</option>
+        </select>
+    </div>
+    <div class="card-body">
+        <canvas id="investmentChart" style="max-height: 400px;"></canvas>
+    </div>
+</div>
+
+<!-- Add Portfolio Modal -->
+<div id="addPortfolioModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">Add Investment Portfolio</h3>
+            <button class="close-btn" onclick="closeModal('addPortfolioModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="addPortfolioForm">
+                <div class="form-group">
+                    <label class="form-label">Portfolio Name</label>
+                    <input type="text" class="form-control" id="portfolioName" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Portfolio Type</label>
+                    <select class="form-control" id="portfolioType" onchange="togglePortfolioType()">
+                        <option value="simple">Simple (Monthly Contribution + Return %)</option>
+                        <option value="detailed">Detailed (Individual Stocks)</option>
+                    </select>
+                </div>
+
+                <div id="simpleFields">
+                    <div class="form-group">
+                        <label class="form-label">Current Value</label>
+                        <input type="number" class="form-control" id="currentValue" step="0.01" value="0" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Monthly Contribution</label>
+                        <input type="number" class="form-control" id="monthlyContribution" step="0.01" value="0" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Mean Annual Return (%)</label>
+                        <input type="number" class="form-control" id="meanReturn" step="0.01" value="7.0" required>
+                        <small style="color: var(--text-light); font-size: 0.75rem;">Historical S&P 500 average: ~10%</small>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" class="form-control" id="startDate" required>
+                </div>
+
+                <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('addPortfolioModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="ri-save-line"></i> Save Portfolio</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Stock Modal -->
+<div id="addStockModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">Add Stock Holding</h3>
+            <button class="close-btn" onclick="closeModal('addStockModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="addStockForm">
+                <div class="form-group">
+                    <label class="form-label">Portfolio</label>
+                    <select class="form-control" id="stockPortfolio" required>
+                        <option value="">Select Portfolio...</option>
+                        {% for portfolio in portfolios %}
+                        {% if portfolio.type == 'detailed' %}
+                        <option value="{{ portfolio._id }}">{{ portfolio.name }}</option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Ticker Symbol</label>
+                    <input type="text" class="form-control" id="stockTicker" placeholder="AAPL" required style="text-transform: uppercase;">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Company Name (Optional)</label>
+                    <input type="text" class="form-control" id="stockName" placeholder="Apple Inc.">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Number of Shares</label>
+                    <input type="number" class="form-control" id="stockShares" step="0.001" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Average Purchase Price</label>
+                    <input type="number" class="form-control" id="stockAvgPrice" step="0.01" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Current Price (Optional)</label>
+                    <input type="number" class="form-control" id="stockCurrentPrice" step="0.01">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Purchase Date</label>
+                    <input type="date" class="form-control" id="stockPurchaseDate" required>
+                </div>
+
+                <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('addStockModal')">Cancel</button>
+                    <button type="submit" class="btn btn-success"><i class="ri-save-line"></i> Add Stock</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Portfolio Modal -->
+<div id="editPortfolioModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">Edit Portfolio</h3>
+            <button class="close-btn" onclick="closeModal('editPortfolioModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="editPortfolioForm">
+                <input type="hidden" id="editPortfolioId">
+                <div class="form-group">
+                    <label class="form-label">Portfolio Name</label>
+                    <input type="text" class="form-control" id="editPortfolioName" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Current Value</label>
+                    <input type="number" class="form-control" id="editCurrentValue" step="0.01" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Monthly Contribution</label>
+                    <input type="number" class="form-control" id="editMonthlyContribution" step="0.01" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Mean Annual Return (%)</label>
+                    <input type="number" class="form-control" id="editMeanReturn" step="0.01" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" class="form-control" id="editStartDate" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" id="editActive" style="margin-right: 0.5rem;">
+                        Active
+                    </label>
+                </div>
+
+                <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('editPortfolioModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="ri-save-line"></i> Update Portfolio</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Import CSV Modal -->
+<div id="importCSVModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">Import from Trading212 CSV</h3>
+            <button class="close-btn" onclick="closeModal('importCSVModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="importCSVForm">
+                <div class="form-group">
+                    <label class="form-label">Select Portfolio</label>
+                    <select class="form-control" id="importPortfolio" required>
+                        <option value="">Select Portfolio...</option>
+                        {% for portfolio in portfolios %}
+                        <option value="{{ portfolio._id }}">{{ portfolio.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <small style="color: var(--text-light); font-size: 0.75rem;">Stocks will be imported into this portfolio</small>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Upload CSV File</label>
+                    <input type="file" class="form-control" id="csvFile" accept=".csv" required>
+                    <small style="color: var(--text-light); font-size: 0.75rem;">
+                        Supports Trading212 export format. The importer will process buy/sell transactions and calculate your current holdings.
+                    </small>
+                </div>
+
+                <div id="importPreview" style="display: none; margin-top: 1rem; padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">
+                    <h4 style="margin-bottom: 0.5rem; font-size: 0.9rem;">Preview:</h4>
+                    <div id="importPreviewContent" style="font-size: 0.85rem; color: var(--text-light);"></div>
+                </div>
+
+                <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('importCSVModal')">Cancel</button>
+                    <button type="submit" class="btn btn-info"><i class="ri-upload-line"></i> Import</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Sync Trading212 Modal -->
+<div id="syncModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">Sync with Trading212</h3>
+            <button class="close-btn" onclick="closeModal('syncModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p style="color: var(--text-light); margin-bottom: 1.5rem;">
+                Connect to your Trading212 account to automatically sync holdings and update prices.
+            </p>
+
+            <div class="form-group">
+                <label class="form-label">Sync Options</label>
+                <div style="display: flex; flex-direction: column; gap: 1rem;">
+                    <button type="button" class="btn btn-primary" onclick="syncPrices()" style="width: 100%;">
+                        <i class="ri-refresh-line"></i> Update Prices Only
+                        <small style="display: block; font-size: 0.75rem; margin-top: 0.25rem; opacity: 0.8;">
+                            Updates current prices for existing stocks
+                        </small>
+                    </button>
+                    
+                    <div style="border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                        <label class="form-label">Sync All Holdings to Portfolio</label>
+                        <select class="form-control" id="syncPortfolio" style="margin-bottom: 0.5rem;">
+                            <option value="">Select Portfolio...</option>
+                            {% for portfolio in portfolios %}
+                            <option value="{{ portfolio._id }}">{{ portfolio.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" class="btn btn-success" onclick="syncHoldings()" style="width: 100%;">
+                            <i class="ri-download-line"></i> Replace with Trading212 Holdings
+                            <small style="display: block; font-size: 0.75rem; margin-top: 0.25rem; opacity: 0.8;">
+                                ⚠️ This will delete all existing stocks in the portfolio and replace with fresh data from Trading212
+                            </small>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 1.5rem; padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">
+                <p style="font-size: 0.85rem; color: var(--text-light); margin: 0;">
+                    <strong>Note:</strong> You need to configure your Trading212 API credentials first. 
+                    Get your API key from the Trading212 app and add it in Settings.
+                </p>
+            </div>
+
+            <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.5rem;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('syncModal')">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let investmentChart = null;
+
+    // Initialize function
+    function initializeInvestmentsPage() {
+        const startDate = document.getElementById('startDate');
+        const stockPurchaseDate = document.getElementById('stockPurchaseDate');
+        
+        if (startDate) startDate.valueAsDate = new Date();
+        if (stockPurchaseDate) stockPurchaseDate.valueAsDate = new Date();
+        
+        loadInvestmentChart(12);
+        loadStocks();
+    }
+
+    // Run initialization for full page loads (HTMX will call it via afterSwap event)
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeInvestmentsPage);
+    } else if (!window.htmxSwapping) {
+        setTimeout(initializeInvestmentsPage, 0);
+    }
+
+    // Portfolio Type Toggle
+    function togglePortfolioType() {
+        const type = document.getElementById('portfolioType').value;
+        document.getElementById('simpleFields').style.display = type === 'simple' ? 'block' : 'none';
+    }
+
+    // Modal Functions
+    function openAddPortfolioModal() {
+        document.getElementById('addPortfolioForm').reset();
+        document.getElementById('startDate').valueAsDate = new Date();
+        openModal('addPortfolioModal');
+    }
+
+    function openAddStockModal() {
+        document.getElementById('addStockForm').reset();
+        document.getElementById('stockPurchaseDate').valueAsDate = new Date();
+        openModal('addStockModal');
+    }
+
+    // Add Portfolio
+    document.getElementById('addPortfolioForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const data = {
+            name: document.getElementById('portfolioName').value,
+            type: document.getElementById('portfolioType').value,
+            current_value: document.getElementById('currentValue').value,
+            monthly_contribution: document.getElementById('monthlyContribution').value,
+            mean_return_percent: document.getElementById('meanReturn').value,
+            start_date: document.getElementById('startDate').value
+        };
+
+        fetch('/api/investment-portfolio', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                showAlert('Portfolio added successfully', 'success');
+                closeModal('addPortfolioModal');
+                setTimeout(() => location.reload(), 1000);
+            }
+        })
+        .catch(error => {
+            showAlert('Error adding portfolio', 'error');
+            console.error(error);
+        });
+    });
+
+    // Add Stock
+    document.getElementById('addStockForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const data = {
+            portfolio_id: document.getElementById('stockPortfolio').value,
+            ticker: document.getElementById('stockTicker').value,
+            name: document.getElementById('stockName').value,
+            shares: document.getElementById('stockShares').value,
+            avg_price: document.getElementById('stockAvgPrice').value,
+            current_price: document.getElementById('stockCurrentPrice').value || document.getElementById('stockAvgPrice').value,
+            purchase_date: document.getElementById('stockPurchaseDate').value
+        };
+
+        fetch('/api/investment-stocks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                showAlert('Stock added successfully', 'success');
+                closeModal('addStockModal');
+                setTimeout(() => location.reload(), 1000);
+            }
+        })
+        .catch(error => {
+            showAlert('Error adding stock', 'error');
+            console.error(error);
+        });
+    });
+
+    // Edit Portfolio
+    function editPortfolio(id) {
+        fetch(`/api/investment-portfolio/${id}`)
+            .then(response => response.json())
+            .then(portfolio => {
+                document.getElementById('editPortfolioId').value = id;
+                document.getElementById('editPortfolioName').value = portfolio.name;
+                document.getElementById('editCurrentValue').value = portfolio.current_value;
+                document.getElementById('editMonthlyContribution').value = portfolio.monthly_contribution;
+                document.getElementById('editMeanReturn').value = portfolio.mean_return_percent;
+                document.getElementById('editStartDate').value = portfolio.start_date.split('T')[0];
+                document.getElementById('editActive').checked = portfolio.active;
+                openModal('editPortfolioModal');
+            });
+    }
+
+    document.getElementById('editPortfolioForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const id = document.getElementById('editPortfolioId').value;
+        
+        const data = {
+            name: document.getElementById('editPortfolioName').value,
+            current_value: document.getElementById('editCurrentValue').value,
+            monthly_contribution: document.getElementById('editMonthlyContribution').value,
+            mean_return_percent: document.getElementById('editMeanReturn').value,
+            start_date: document.getElementById('editStartDate').value,
+            active: document.getElementById('editActive').checked
+        };
+
+        fetch(`/api/investment-portfolio/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                showAlert('Portfolio updated successfully', 'success');
+                closeModal('editPortfolioModal');
+                setTimeout(() => location.reload(), 1000);
+            }
+        });
+    });
+
+    // Delete Portfolio
+    function deletePortfolio(id) {
+        if (confirm('Are you sure you want to delete this portfolio?')) {
+            fetch(`/api/investment-portfolio/${id}`, { method: 'DELETE' })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        showAlert('Portfolio deleted successfully', 'success');
+                        setTimeout(() => location.reload(), 1000);
+                    }
+                });
+        }
+    }
+
+    // Recalculate Portfolio Value
+    function recalculatePortfolio(id) {
+        fetch(`/api/investment-portfolio/${id}/recalculate`, { 
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                showAlert(`Portfolio value recalculated: ${currentCurrencySymbol}${result.current_value.toFixed(2)} (${result.stock_count} stocks)`, 'success');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showAlert('Error recalculating portfolio value', 'error');
+            }
+        })
+        .catch(error => {
+            showAlert('Error recalculating portfolio value', 'error');
+            console.error(error);
+        });
+    }
+
+    // Load Investment Chart
+    function loadInvestmentChart(months) {
+        fetch(`/api/investment-projections?months=${months}`)
+            .then(response => response.json())
+            .then(data => {
+                const chartElement = document.getElementById('investmentChart');
+                if (!chartElement) {
+                    console.error('Investment chart canvas element not found');
+                    return;
+                }
+                
+                const ctx = chartElement.getContext('2d');
+                
+                // Destroy existing chart if it exists
+                if (investmentChart) {
+                    try {
+                        investmentChart.destroy();
+                    } catch (e) {
+                        console.log('Error destroying chart:', e);
+                    }
+                    investmentChart = null;
+                }
+
+                investmentChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.map((d, i) => `Month ${i + 1}`),
+                        datasets: [{
+                            label: 'Portfolio Value',
+                            data: data.map(d => d.value),
+                            borderColor: '#2C5F2D',
+                            backgroundColor: 'rgba(44, 95, 45, 0.1)',
+                            borderWidth: 3,
+                            tension: 0.4,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return 'Value: ' + formatCurrency(context.parsed.y);
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                ticks: {
+                                    callback: function(value) {
+                                        return currentCurrencySymbol + value.toLocaleString();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            });
+    }
+
+    // Projection months selector
+    document.getElementById('projectionMonths').addEventListener('change', function(e) {
+        loadInvestmentChart(parseInt(e.target.value));
+    });
+
+    // Stock Holdings Functions
+    let allStocks = [];
+    let allPortfolios = [];
+
+    function loadStocks() {
+        Promise.all([
+            fetch('/api/investment-stocks').then(r => r.json()),
+            fetch('/api/investment-portfolio').then(r => r.json())
+        ])
+        .then(([stocks, portfolios]) => {
+            allStocks = stocks;
+            allPortfolios = portfolios;
+            
+            // Populate portfolio filter
+            const filter = document.getElementById('stockPortfolioFilter');
+            portfolios.forEach(p => {
+                const option = document.createElement('option');
+                option.value = p._id;
+                option.textContent = p.name;
+                filter.appendChild(option);
+            });
+            
+            // Display stocks
+            displayStocks(stocks, portfolios);
+        })
+        .catch(error => console.error('Error loading stocks:', error));
+    }
+
+    function displayStocks(stocks, portfolios) {
+        const tbody = document.getElementById('stocksTableBody');
+        const card = document.getElementById('stockHoldingsCard');
+        
+        if (stocks.length === 0) {
+            card.style.display = 'none';
+            return;
+        }
+        
+        card.style.display = 'block';
+        
+        // Create portfolio lookup
+        const portfolioMap = {};
+        portfolios.forEach(p => portfolioMap[p._id] = p.name);
+        
+        tbody.innerHTML = stocks.map(stock => {
+            const totalValue = stock.shares * (stock.current_price || stock.avg_price);
+            const totalCost = stock.shares * stock.avg_price;
+            const gainLoss = totalValue - totalCost;
+            const gainLossPercent = totalCost > 0 ? (gainLoss / totalCost * 100) : 0;
+            const gainLossColor = gainLoss >= 0 ? 'var(--success)' : 'var(--danger)';
+            
+            return `
+                <tr data-portfolio="${stock.portfolio_id}">
+                    <td><strong>${stock.ticker}</strong></td>
+                    <td>${stock.name || '-'}</td>
+                    <td style="font-family: var(--font-mono);">${stock.shares.toFixed(6)}</td>
+                    <td style="font-family: var(--font-mono);">${currentCurrencySymbol}${stock.avg_price.toFixed(2)}</td>
+                    <td style="font-family: var(--font-mono);">${currentCurrencySymbol}${(stock.current_price || stock.avg_price).toFixed(2)}</td>
+                    <td style="font-family: var(--font-mono); font-weight: 600;">${currentCurrencySymbol}${totalValue.toFixed(2)}</td>
+                    <td style="font-family: var(--font-mono); color: ${gainLossColor}; font-weight: 600;">
+                        ${gainLoss >= 0 ? '+' : ''}${currentCurrencySymbol}${gainLoss.toFixed(2)} 
+                        (${gainLossPercent >= 0 ? '+' : ''}${gainLossPercent.toFixed(2)}%)
+                    </td>
+                    <td><span class="badge badge-primary">${portfolioMap[stock.portfolio_id] || 'Unknown'}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="editStock('${stock._id}')"><i class="ri-edit-line"></i></button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteStock('${stock._id}')"><i class="ri-delete-bin-line"></i></button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function filterStocks() {
+        const portfolioId = document.getElementById('stockPortfolioFilter').value;
+        let filteredStocks = allStocks;
+        
+        if (portfolioId) {
+            filteredStocks = allStocks.filter(s => s.portfolio_id === portfolioId);
+        }
+        
+        displayStocks(filteredStocks, allPortfolios);
+    }
+
+    function editStock(id) {
+        // TODO: Implement edit stock functionality
+        showAlert('Edit stock functionality coming soon', 'info');
+    }
+
+    function deleteStock(id) {
+        if (confirm('Are you sure you want to delete this stock holding?')) {
+            fetch(`/api/investment-stocks/${id}`, { method: 'DELETE' })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        showAlert('Stock deleted successfully', 'success');
+                        setTimeout(() => location.reload(), 1000);
+                    }
+                });
+        }
+    }
+
+    // Trading212 Sync Functions
+    function openSyncModal() {
+        openModal('syncModal');
+    }
+
+    function syncPrices() {
+        if (!confirm('Update stock prices from Trading212?')) {
+            return;
+        }
+
+        fetch('/api/investment-sync-prices', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                showAlert(result.message || `Updated ${result.updated} stock prices!`, 'success');
+                closeModal('syncModal');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showAlert(result.error || 'Error syncing prices', 'error');
+            }
+        })
+        .catch(error => {
+            showAlert('Error syncing prices: ' + error.message, 'error');
+            console.error(error);
+        });
+    }
+
+    function syncHoldings() {
+        const portfolioId = document.getElementById('syncPortfolio').value;
+        
+        if (!portfolioId) {
+            showAlert('Please select a portfolio', 'error');
+            return;
+        }
+
+        if (!confirm('⚠️ WARNING: This will DELETE all existing stocks in this portfolio and replace them with fresh data from Trading212.\n\nAny manually entered stocks or CSV imports will be removed.\n\nContinue?')) {
+            return;
+        }
+
+        fetch('/api/investment-sync-from-trading212', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                portfolio_id: portfolioId,
+                replace_all: true 
+            })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                // Format the detailed message
+                let message = `✅ Synced ${result.imported} holdings from Trading212\n\n`;
+                message += `📊 Portfolio Value: ${currentCurrencySymbol}${result.total_value.toFixed(2)}\n`;
+                message += `💰 Total Invested: ${currentCurrencySymbol}${result.total_invested.toFixed(2)}\n`;
+                
+                const gainLoss = result.gain_loss;
+                const gainLossPercent = result.gain_loss_percent;
+                const gainLossEmoji = gainLoss >= 0 ? '📈' : '📉';
+                const gainLossSign = gainLoss >= 0 ? '+' : '';
+                message += `${gainLossEmoji} Gain/Loss: ${gainLossSign}${currentCurrencySymbol}${gainLoss.toFixed(2)} (${gainLossSign}${gainLossPercent.toFixed(2)}%)`;
+                
+                if (result.deleted > 0) {
+                    message += `\n\n🔄 Replaced ${result.deleted} old entries`;
+                }
+                
+                alert(message);  // Use alert for multiline message
+                closeModal('syncModal');
+                setTimeout(() => location.reload(), 500);
+            } else {
+                showAlert(result.error || 'Error syncing holdings', 'error');
+            }
+        })
+        .catch(error => {
+            showAlert('Error syncing holdings: ' + error.message, 'error');
+            console.error(error);
+        });
+    }
+
+    // CSV Import Functions
+    function openImportCSVModal() {
+        document.getElementById('importCSVForm').reset();
+        document.getElementById('importPreview').style.display = 'none';
+        openModal('importCSVModal');
+    }
+
+    // Preview CSV when file is selected
+    document.getElementById('csvFile').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const csvText = event.target.result;
+                const lines = csvText.split('\n').filter(line => line.trim());
+                
+                // Show preview
+                const previewDiv = document.getElementById('importPreviewContent');
+                previewDiv.innerHTML = `
+                    <p><strong>File:</strong> ${file.name}</p>
+                    <p><strong>Total rows:</strong> ${lines.length - 1} (excluding header)</p>
+                    <p><strong>First few lines:</strong></p>
+                    <pre style="font-size: 0.75rem; overflow-x: auto; max-height: 150px;">${lines.slice(0, 5).join('\n')}</pre>
+                `;
+                document.getElementById('importPreview').style.display = 'block';
+            };
+            reader.readAsText(file);
+        }
+    });
+
+    // Handle CSV Import Form Submit
+    document.getElementById('importCSVForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const portfolioId = document.getElementById('importPortfolio').value;
+        const fileInput = document.getElementById('csvFile');
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            showAlert('Please select a CSV file', 'error');
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const csvData = event.target.result;
+            
+            // Send to backend
+            fetch('/api/investment-import-trading212', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    portfolio_id: portfolioId,
+                    csv_data: csvData
+                })
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    showAlert(`Successfully imported ${result.imported} stock holdings!`, 'success');
+                    closeModal('importCSVModal');
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showAlert(result.error || 'Error importing CSV', 'error');
+                }
+            })
+            .catch(error => {
+                showAlert('Error importing CSV: ' + error.message, 'error');
+                console.error(error);
+            });
+        };
+        reader.readAsText(file);
+    });
+</script>

@@ -1,0 +1,14 @@
+{% extends "base_partial.html" %}
+
+{% block page_title %}Income Management{% endblock %}
+
+{% block topbar_actions %}
+<button class="btn btn-primary" onclick="openAddRecurringModal()"><i class="ri-add-line"></i> Add Recurring Income</button>
+<button class="btn btn-success" onclick="openAddOneTimeModal()"><i class="ri-add-circle-line"></i> Add One-Time Income</button>
+{% endblock %}
+
+{% block content %}
+{% include "income/income_content.html" %}
+{% endblock %}
+
+{% block extra_js %}{% endblock %}

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Financial Dashboard - FinProjections{% endblock %}
+
+{% block page_title %}Financial Dashboard{% endblock %}
+
+{% block topbar_actions %}
+<select id="monthsSelect" class="form-control" style="width: auto;">
+    <option value="until-now" selected>Until Now</option>
+    <option value="6">6 Months</option>
+    <option value="12">12 Months</option>
+    <option value="24">24 Months</option>
+</select>
+{% endblock %}
+
+{% block content %}
+{% include "dashboard/dashboard_content.html" %}
+{% endblock %}
+
+{% block extra_js %}{% endblock %}

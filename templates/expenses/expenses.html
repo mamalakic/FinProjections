@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}Expense Management - FinProjections{% endblock %}
+
+{% block page_title %}Expense Management{% endblock %}
+
+{% block topbar_actions %}
+<button class="btn btn-primary" onclick="openAddRecurringModal()"><i class="ri-add-line"></i> Add Recurring Expense</button>
+<button class="btn btn-danger" onclick="openAddOneTimeModal()"><i class="ri-add-circle-line"></i> Add One-Time Expense</button>
+{% endblock %}
+
+{% block content %}
+{% include "expenses/expenses_content.html" %}
+{% endblock %}
+
+{% block extra_js %}{% endblock %}

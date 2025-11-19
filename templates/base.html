@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Budget Tracker{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css">
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            /* Colors */
+            --primary: #C41E3A;
+            --primary-dark: #9B1830;
+            --primary-light: #FFE5E9;
+            --secondary: #2C5F2D;
+            --success: #2C5F2D;
+            --danger: #C41E3A;
+            --warning: #D4AF37;
+            --dark: #1C1C1E;
+            --dark-secondary: #2C2C2E;
+            --light: #F5F5F0;
+            --border: #D4C5B9;
+            --text: #1C1C1E;
+            --text-light: #6E6E73;
+            --sidebar-width: 280px;
+            --accent-gold: #D4AF37;
+            --accent-green: #2C5F2D;
+            --paper: #FFFEF7;
+            
+            /* Typography */
+            --font-primary: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
+            
+            /* Transitions */
+            --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-base: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-slow: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body {
+            font-family: var(--font-primary);
+            background: var(--light);
+            background-image: 
+                repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(212, 175, 55, 0.03) 2px, rgba(212, 175, 55, 0.03) 4px),
+                repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(212, 175, 55, 0.03) 2px, rgba(212, 175, 55, 0.03) 4px);
+            min-height: 100vh;
+            color: var(--text);
+            display: flex;
+            font-weight: 400;
+            letter-spacing: 0.02em;
+        }
+
+        /* Sidebar Navigation */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: linear-gradient(180deg, #1C1C1E 0%, #2C2C2E 100%);
+            height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+            border-right: 3px solid var(--accent-gold);
+            box-shadow: 4px 0 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar-brand {
+            padding: 2rem 1.5rem;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border-bottom: 2px solid var(--accent-gold);
+            position: relative;
+        }
+
+        .sidebar-brand::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent-gold), transparent);
+        }
+
+        .sidebar-brand h1 {
+            color: white;
+            font-size: 1.375rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 0.25rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            font-family: var(--font-primary);
+        }
+
+        .sidebar-brand p {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.6875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            font-weight: 500;
+            font-family: var(--font-mono);
+        }
+
+        .nav-links {
+            list-style: none;
+            flex: 1;
+            padding: 1.5rem 0;
+        }
+
+        .nav-links li {
+            margin: 0;
+            position: relative;
+        }
+
+        .nav-links a {
+            color: rgba(255, 255, 255, 0.85);
+            text-decoration: none;
+            padding: 1rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.875rem;
+            transition: all var(--transition-base);
+            font-weight: 500;
+            font-size: 0.875rem;
+            border-left: 4px solid transparent;
+            letter-spacing: 0.05em;
+            position: relative;
+            font-family: var(--font-primary);
+        }
+
+        .nav-links a::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 60%;
+            background: var(--accent-gold);
+            transition: width var(--transition-base);
+        }
+
+        .nav-links a:hover {
+            background: rgba(212, 175, 55, 0.1);
+            color: white;
+            transform: translateX(2px);
+        }
+
+        .nav-links a:hover::before {
+            width: 4px;
+        }
+
+        .nav-links a.active {
+            background: linear-gradient(90deg, rgba(196, 30, 58, 0.2) 0%, transparent 100%);
+            color: var(--accent-gold);
+            border-left-color: var(--accent-gold);
+            font-weight: 700;
+        }
+
+        .nav-links a.active::before {
+            width: 4px;
+        }
+
+        .nav-icon {
+            font-size: 1.25rem;
+            width: 1.25rem;
+            text-align: center;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .sidebar-footer {
+            padding: 1.5rem;
+            border-top: 2px solid rgba(212, 175, 55, 0.3);
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        /* Main Content Area */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            flex: 1;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            /* Prevent flickering during page transitions */
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            -webkit-transform: translateZ(0);
+            transform: translateZ(0);
+            will-change: transform;
+        }
+
+        /* Top Bar */
+        .topbar {
+            background: linear-gradient(180deg, var(--paper) 0%, var(--light) 100%);
+            border-bottom: 3px double var(--border);
+            padding: 1.25rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 90;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .topbar-title h2 {
+            font-size: 1.375rem;
+            font-weight: 700;
+            color: var(--dark);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            position: relative;
+            padding-left: 1rem;
+        }
+
+        .topbar-title h2::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 4px;
+            height: 70%;
+            background: var(--primary);
+        }
+
+        .topbar-actions {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        /* Container */
+        .container {
+            padding: 2rem;
+            flex: 1;
+            /* Smooth page transitions */
+            animation: fadeIn var(--transition-base);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card {
+            background: var(--paper);
+            border: 2px solid var(--border);
+            margin-bottom: 1.5rem;
+            box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.1);
+            position: relative;
+            /* Prevent flickering */
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--accent-gold), var(--accent-green));
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.25rem 2rem;
+            border-bottom: 2px solid var(--border);
+            background: linear-gradient(180deg, rgba(212, 175, 55, 0.05) 0%, transparent 100%);
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--dark);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-family: var(--font-mono);
+        }
+
+        .card-body {
+            padding: 2rem;
+        }
+
+        .btn {
+            padding: 0.625rem 1.5rem;
+            border: 2px solid currentColor;
+            border-radius: 0;
+            font-size: 0.8125rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all var(--transition-base);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            line-height: 1.5;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            position: relative;
+            box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.15);
+            font-family: var(--font-mono);
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transform: translate(-50%, -50%);
+            transition: width var(--transition-slow), height var(--transition-slow);
+        }
+
+        .btn:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .btn:active {
+            transform: translate(2px, 2px);
+            box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary-dark);
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.25);
+            transform: translate(-1px, -1px);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+            border-color: #1E4620;
+        }
+
+        .btn-success:hover {
+            background: #1E4620;
+            box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.25);
+            transform: translate(-1px, -1px);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+            border-color: var(--primary-dark);
+        }
+
+        .btn-danger:hover {
+            background: var(--primary-dark);
+            box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.25);
+            transform: translate(-1px, -1px);
+        }
+
+        .btn-secondary {
+            background: var(--paper);
+            color: var(--text);
+            border-color: var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--light);
+            border-color: var(--text-light);
+            box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.2);
+            transform: translate(-1px, -1px);
+        }
+
+        .btn-sm {
+            padding: 0.5rem 1rem;
+            font-size: 0.75rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--dark);
+            font-size: 0.875rem;
+            font-family: var(--font-primary);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid var(--border);
+            border-radius: 0;
+            font-size: 0.875rem;
+            transition: all var(--transition-base);
+            background: var(--paper);
+            font-family: var(--font-primary);
+            box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.05), 0 0 0 3px var(--primary-light);
+            background: white;
+            transform: translateY(-1px);
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .table th {
+            background: linear-gradient(180deg, rgba(212, 175, 55, 0.15) 0%, rgba(212, 175, 55, 0.05) 100%);
+            padding: 1rem;
+            text-align: left;
+            font-weight: 700;
+            color: var(--dark);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border-bottom: 3px solid var(--border);
+            border-top: 2px solid var(--border);
+            font-family: var(--font-mono);
+        }
+
+        .table th:first-child {
+            border-left: 2px solid var(--border);
+        }
+
+        .table th:last-child {
+            border-right: 2px solid var(--border);
+        }
+
+        .table td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.875rem;
+            background: var(--paper);
+            font-family: var(--font-primary);
+            transition: all var(--transition-fast);
+        }
+
+        .table td:first-child {
+            border-left: 2px solid var(--border);
+        }
+
+        .table td:last-child {
+            border-right: 2px solid var(--border);
+        }
+
+        .table tbody tr {
+            transition: all var(--transition-fast);
+        }
+
+        .table tbody tr:hover td {
+            background: rgba(212, 175, 55, 0.08);
+            transform: scale(1.005);
+        }
+
+        .table tbody tr:last-child td {
+            border-bottom: 2px solid var(--border);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.375rem 0.75rem;
+            border-radius: 0;
+            font-size: 0.6875rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border: 2px solid currentColor;
+            font-family: var(--font-mono);
+            transition: all var(--transition-fast);
+        }
+
+        .badge:hover {
+            transform: scale(1.05);
+        }
+
+        .badge-success {
+            background: rgba(44, 95, 45, 0.1);
+            color: var(--success);
+            border-color: var(--success);
+        }
+
+        .badge-danger {
+            background: rgba(196, 30, 58, 0.1);
+            color: var(--danger);
+            border-color: var(--danger);
+        }
+
+        .badge-warning {
+            background: rgba(212, 175, 55, 0.1);
+            color: var(--warning);
+            border-color: var(--warning);
+        }
+
+        .badge-primary {
+            background: var(--primary-light);
+            color: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(26, 29, 41, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            padding: 0;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .modal-body {
+            padding: 2rem;
+            max-height: calc(90vh - 80px);
+            overflow-y: auto;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-light);
+            line-height: 1;
+            padding: 0.25rem;
+            transition: color 0.15s;
+        }
+
+        .close-btn:hover {
+            color: var(--dark);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--paper);
+            border: 3px solid var(--border);
+            padding: 1.75rem;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--border);
+        }
+
+        .stat-card.success::after {
+            background: var(--success);
+        }
+
+        .stat-card.danger::after {
+            background: var(--danger);
+        }
+
+        .stat-card.primary::after {
+            background: var(--primary);
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-light);
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 700;
+            font-family: var(--font-mono);
+        }
+
+        .stat-value {
+            font-size: 2.25rem;
+            font-weight: 700;
+            color: var(--dark);
+            font-family: var(--font-mono);
+            letter-spacing: -0.02em;
+            transition: all var(--transition-base);
+        }
+
+        .stat-card:hover .stat-value {
+            transform: scale(1.05);
+        }
+
+        .stat-card.success .stat-value {
+            color: var(--success);
+        }
+
+        .stat-card.danger .stat-value {
+            color: var(--danger);
+        }
+
+        .stat-card.primary .stat-value {
+            color: var(--primary);
+        }
+
+        /* Enhanced Tooltips for Stat Cards */
+        .stat-card[title] {
+            cursor: help;
+            position: relative;
+        }
+
+        .stat-card[title]:hover {
+            border-color: var(--accent-gold);
+            box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.15), 0 0 0 1px var(--accent-gold);
+        }
+
+        /* Custom tooltip styling using title attribute */
+        .stat-card[title]::before {
+            content: attr(title);
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%) translateY(8px);
+            background: var(--dark);
+            color: white;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-size: 0.8125rem;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            max-width: 320px;
+            width: max-content;
+            text-align: left;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity var(--transition-base), transform var(--transition-base);
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            border: 2px solid var(--accent-gold);
+            font-weight: 400;
+            letter-spacing: 0.01em;
+            text-transform: none;
+        }
+
+        .stat-card[title]::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%) translateY(2px);
+            border: 8px solid transparent;
+            border-bottom-color: var(--accent-gold);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity var(--transition-base);
+            z-index: 1001;
+        }
+
+        .stat-card[title]:hover::before {
+            opacity: 1;
+            transform: translateX(-50%) translateY(12px);
+        }
+
+        .stat-card[title]:hover::after {
+            opacity: 1;
+        }
+
+        .alert {
+            padding: 1rem 1.5rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            border-left: 3px solid;
+            font-size: 0.9375rem;
+        }
+
+        .alert-success {
+            background: rgba(0, 200, 83, 0.1);
+            color: var(--success);
+            border-color: var(--success);
+        }
+
+        .alert-error {
+            background: rgba(255, 61, 113, 0.1);
+            color: var(--danger);
+            border-color: var(--danger);
+        }
+
+        .currency-btn {
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-weight: 600;
+            color: var(--text);
+            font-size: 0.875rem;
+        }
+
+        .currency-btn:hover {
+            border-color: var(--primary);
+            background: var(--primary-light);
+            color: var(--primary);
+        }
+
+        /* Text color utility classes */
+        .text-success {
+            color: var(--success) !important;
+        }
+
+        .text-danger {
+            color: var(--danger) !important;
+        }
+
+        .text-primary {
+            color: var(--primary) !important;
+        }
+
+        @media (max-width: 1024px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s;
+            }
+
+            .sidebar.mobile-open {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .topbar {
+                padding: 1rem;
+            }
+
+            .container {
+                padding: 1rem;
+            }
+
+            .card-header {
+                padding: 1rem;
+            }
+
+            .card-body {
+                padding: 1rem;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <h1>財務銀行</h1>
+            <p>FinProjections Est. 2025</p>
+        </div>
+        
+        <ul class="nav-links">
+            <li><a href="/" hx-get="/" hx-target="#main-content-area" hx-push-url="true" {% if request.path == '/' or request.path == '/dashboard' %}class="active"{% endif %}><i class="ri-line-chart-line nav-icon"></i> Dashboard</a></li>
+            <li><a href="/income" hx-get="/income" hx-target="#main-content-area" hx-push-url="true" {% if request.path == '/income' %}class="active"{% endif %}><i class="ri-money-dollar-circle-line nav-icon"></i> Income</a></li>
+            <li><a href="/expenses" hx-get="/expenses" hx-target="#main-content-area" hx-push-url="true" {% if request.path == '/expenses' %}class="active"{% endif %}><i class="ri-bank-card-line nav-icon"></i> Expenses</a></li>
+            <li><a href="/investments" hx-get="/investments" hx-target="#main-content-area" hx-push-url="true" {% if request.path == '/investments' %}class="active"{% endif %}><i class="ri-stock-line nav-icon"></i> Investments</a></li>
+            <li><a href="/settings" hx-get="/settings" hx-target="#main-content-area" hx-push-url="true" {% if request.path == '/settings' %}class="active"{% endif %}><i class="ri-settings-3-line nav-icon"></i> Settings</a></li>
+        </ul>
+        
+        <div class="sidebar-footer">
+            <button class="btn btn-secondary" onclick="openCurrencyModal()" style="width: 100%; justify-content: center; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2);">
+                <i class="ri-exchange-dollar-line"></i>
+                <span id="currentCurrency">{{ currency.symbol }} {{ currency.code }}</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div id="main-content-area">
+            <!-- Top Bar -->
+            <div class="topbar">
+                <div class="topbar-title">
+                    <h2>{% block page_title %}{% endblock %}</h2>
+                </div>
+                <div class="topbar-actions">
+                    {% block topbar_actions %}{% endblock %}
+                </div>
+            </div>
+
+            <!-- Page Content -->
+            <div class="container">
+                {% block content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Currency Selector Modal -->
+    <div id="currencyModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Select Currency</h3>
+                <button class="close-btn" onclick="closeModal('currencyModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="color: var(--text-light); margin-bottom: 1.5rem;">Choose your preferred currency for displaying amounts throughout the application.</p>
+                
+                <div class="form-group">
+                    <label class="form-label">Popular Currencies</label>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.5rem;">
+                        <button class="currency-btn" onclick="selectCurrency('USD', '$')">$ USD</button>
+                        <button class="currency-btn" onclick="selectCurrency('EUR', '€')">€ EUR</button>
+                        <button class="currency-btn" onclick="selectCurrency('GBP', '£')">£ GBP</button>
+                        <button class="currency-btn" onclick="selectCurrency('JPY', '¥')">¥ JPY</button>
+                        <button class="currency-btn" onclick="selectCurrency('CNY', '¥')">¥ CNY</button>
+                        <button class="currency-btn" onclick="selectCurrency('INR', '₹')">₹ INR</button>
+                        <button class="currency-btn" onclick="selectCurrency('CAD', 'C$')">C$ CAD</button>
+                        <button class="currency-btn" onclick="selectCurrency('AUD', 'A$')">A$ AUD</button>
+                        <button class="currency-btn" onclick="selectCurrency('CHF', 'Fr')">Fr CHF</button>
+                        <button class="currency-btn" onclick="selectCurrency('KRW', '₩')">₩ KRW</button>
+                        <button class="currency-btn" onclick="selectCurrency('BRL', 'R$')">R$ BRL</button>
+                        <button class="currency-btn" onclick="selectCurrency('MXN', '$')">$ MXN</button>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 1.5rem; margin-bottom: 0;">
+                    <label class="form-label">Or Enter Custom</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" class="form-control" id="customSymbol" placeholder="Symbol (e.g., $)" style="flex: 1;" maxlength="5">
+                        <input type="text" class="form-control" id="customCode" placeholder="Code (e.g., USD)" style="flex: 1;" maxlength="3">
+                        <button class="btn btn-primary" onclick="selectCustomCurrency()">Apply</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global currency settings
+        let currentCurrencySymbol = '{{ currency.symbol }}';
+        let currentCurrencyCode = '{{ currency.code }}';
+
+        // Utility functions
+        function formatCurrency(amount) {
+            // Use current currency symbol
+            return currentCurrencySymbol + amount.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+
+        function showAlert(message, type = 'success') {
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            document.querySelector('.container').insertBefore(alert, document.querySelector('.container').firstChild);
+            
+            setTimeout(() => {
+                alert.remove();
+            }, 3000);
+        }
+
+        // Modal functions
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        // Close modal when clicking outside
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal')) {
+                e.target.classList.remove('active');
+            }
+        });
+
+        // Currency functions
+        function openCurrencyModal() {
+            openModal('currencyModal');
+        }
+
+        function selectCurrency(code, symbol) {
+            updateCurrency(code, symbol);
+        }
+
+        function selectCustomCurrency() {
+            const symbol = document.getElementById('customSymbol').value.trim();
+            const code = document.getElementById('customCode').value.trim().toUpperCase();
+            
+            if (!symbol || !code) {
+                showAlert('Please enter both symbol and code', 'error');
+                return;
+            }
+            
+            if (code.length > 3) {
+                showAlert('Currency code must be 3 characters or less', 'error');
+                return;
+            }
+            
+            updateCurrency(code, symbol);
+        }
+
+        function updateCurrency(code, symbol) {
+            fetch('/api/settings/currency', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code: code, symbol: symbol })
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    currentCurrencySymbol = symbol;
+                    currentCurrencyCode = code;
+                    document.getElementById('currentCurrency').textContent = symbol + ' ' + code;
+                    showAlert('Currency updated to ' + symbol + ' ' + code, 'success');
+                    closeModal('currencyModal');
+                    
+                    // Reload page after a short delay to update all currency displays
+                    setTimeout(() => location.reload(), 1000);
+                }
+            })
+            .catch(error => {
+                showAlert('Error updating currency', 'error');
+                console.error(error);
+            });
+        }
+
+        // Load current currency on page load
+        fetch('/api/settings/currency')
+            .then(response => response.json())
+            .then(data => {
+                currentCurrencySymbol = data.symbol;
+                currentCurrencyCode = data.code;
+            })
+            .catch(error => console.error('Error loading currency:', error));
+
+        // Track HTMX swaps
+        document.body.addEventListener('htmx:beforeSwap', function(event) {
+            if (event.detail.target.id === 'main-content-area') {
+                window.htmxSwapping = true;
+            }
+        });
+
+        // HTMX: Update active nav link and trigger initialization after page swap
+        document.body.addEventListener('htmx:afterSwap', function(event) {
+            if (event.detail.target.id === 'main-content-area') {
+                console.log('HTMX content swapped, triggering initialization...');
+                
+                // Get current path from URL
+                const currentPath = window.location.pathname;
+                
+                // Remove active class from all nav links
+                document.querySelectorAll('.nav-links a').forEach(link => {
+                    link.classList.remove('active');
+                });
+                
+                // Add active class to matching nav link
+                document.querySelectorAll('.nav-links a').forEach(link => {
+                    const linkPath = new URL(link.href).pathname;
+                    if (linkPath === currentPath) {
+                        link.classList.add('active');
+                    }
+                });
+                
+                // Trigger page-specific initialization
+                // The scripts in the swapped content will define these functions
+                setTimeout(() => {
+                    // Only call the function if it exists AND its required elements are present
+                    if (typeof initializeDashboard === 'function' && document.getElementById('projectionChart')) {
+                        console.log('Calling initializeDashboard');
+                        initializeDashboard();
+                    } else if (typeof initializeIncomePage === 'function' && document.getElementById('recurringStartDate')) {
+                        console.log('Calling initializeIncomePage');
+                        initializeIncomePage();
+                    } else if (typeof initializeExpensesPage === 'function' && document.getElementById('recurringStartDate')) {
+                        console.log('Calling initializeExpensesPage');
+                        initializeExpensesPage();
+                    } else if (typeof initializeInvestmentsPage === 'function' && document.getElementById('investmentChart')) {
+                        console.log('Calling initializeInvestmentsPage');
+                        initializeInvestmentsPage();
+                    }
+                    
+                    // Reset flag
+                    window.htmxSwapping = false;
+                }, 50);
+            }
+        });
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

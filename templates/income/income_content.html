@@ -1,0 +1,419 @@
+<!-- This file contains ONLY the actual content, no template inheritance -->
+
+<!-- Recurring Income Section -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Recurring Income</h3>
+    </div>
+
+    {% if recurring %}
+    <div style="overflow-x: auto;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Amount</th>
+                    <th>Frequency</th>
+                    <th>Start Date</th>
+                    <th>End Date</th>
+                    <th>Status</th>
+                    <th>Type</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for income in recurring %}
+                <tr>
+                    <td><strong>{{ income.name }}</strong></td>
+                    <td style="color: var(--success); font-weight: 600;">{{ currency.symbol }}{{ "{:,.2f}".format(income.amount) }}</td>
+                    <td><span class="badge badge-primary">{{ income.frequency }}</span></td>
+                    <td>{{ income.start_date.strftime('%Y-%m-%d') }}</td>
+                    <td>{{ income.end_date.strftime('%Y-%m-%d') if income.end_date else 'Ongoing' }}</td>
+                    <td>
+                        {% if income.active %}
+                        <span class="badge badge-success">Active</span>
+                        {% else %}
+                        <span class="badge badge-danger">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if income.get('upcoming', False) %}
+                        <span class="badge" style="background: #ff9800; color: white;">Upcoming</span>
+                        {% else %}
+                        <span class="badge badge-success">Counted</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="editRecurringIncome('{{ income._id }}')">Edit</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteRecurringIncome('{{ income._id }}')">Delete</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="text-align: center; color: var(--text-light); padding: 2rem;">No recurring income added yet. Click the button above to add your first income source.</p>
+    {% endif %}
+</div>
+
+<!-- One-Time Income Section -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">One-Time Income</h3>
+    </div>
+
+    {% if one_time %}
+    <div style="overflow-x: auto;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Amount</th>
+                    <th>Date</th>
+                    <th>Category</th>
+                    <th>Notes</th>
+                    <th>Type</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for income in one_time %}
+                <tr>
+                    <td><strong>{{ income.name }}</strong></td>
+                    <td style="color: var(--success); font-weight: 600;">{{ currency.symbol }}{{ "{:,.2f}".format(income.amount) }}</td>
+                    <td>{{ income.date.strftime('%Y-%m-%d') }}</td>
+                    <td><span class="badge badge-warning">{{ income.category }}</span></td>
+                    <td>{{ income.notes or '-' }}</td>
+                    <td>
+                        {% if income.get('upcoming', False) %}
+                        <span class="badge" style="background: #ff9800; color: white;">Upcoming</span>
+                        {% else %}
+                        <span class="badge badge-success">Counted</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="editOneTimeIncome('{{ income._id }}')">Edit</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteOneTimeIncome('{{ income._id }}')">Delete</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="text-align: center; color: var(--text-light); padding: 2rem;">No one-time income recorded yet. Click the button above to add bonuses, overtime, or other one-time income.</p>
+    {% endif %}
+</div>
+
+<!-- Recurring Income Modal -->
+<div id="recurringModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title" id="recurringModalTitle">Add Recurring Income</h3>
+            <button class="close-btn" onclick="closeModal('recurringModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="recurringForm" onsubmit="saveRecurringIncome(event)">
+                <input type="hidden" id="recurringId">
+                
+                <div class="form-group">
+                    <label class="form-label">Name *</label>
+                    <input type="text" class="form-control" id="recurringName" required placeholder="e.g., Monthly Salary">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Amount ({{ currency.symbol }}) *</label>
+                    <input type="number" step="0.01" class="form-control" id="recurringAmount" required placeholder="0.00">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Frequency *</label>
+                    <select class="form-control" id="recurringFrequency" required>
+                        <option value="monthly">Monthly</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="biweekly">Bi-weekly</option>
+                        <option value="yearly">Yearly</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Start Date *</label>
+                    <input type="date" class="form-control" id="recurringStartDate" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">End Date (Optional)</label>
+                    <input type="date" class="form-control" id="recurringEndDate">
+                    <small style="color: var(--text-light);">Leave empty for ongoing income</small>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Payday (Day of Month, Optional)</label>
+                    <input type="number" min="1" max="31" class="form-control" id="recurringPayday" placeholder="e.g., 15 for 15th of month">
+                    <small style="color: var(--text-light);">When you receive this income each month</small>
+                </div>
+
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 0.5rem;">
+                        <input type="checkbox" id="recurringActive" checked>
+                        <span class="form-label" style="margin: 0;">Active</span>
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 0.5rem;">
+                        <input type="checkbox" id="recurringUpcoming">
+                        <span class="form-label" style="margin: 0;">Upcoming (visible but not counted in projections)</span>
+                    </label>
+                </div>
+
+                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                    <button type="button" class="btn" onclick="closeModal('recurringModal')" style="background: var(--border);">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- One-Time Income Modal -->
+<div id="oneTimeModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title" id="oneTimeModalTitle">Add One-Time Income</h3>
+            <button class="close-btn" onclick="closeModal('oneTimeModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="oneTimeForm" onsubmit="saveOneTimeIncome(event)">
+                <input type="hidden" id="oneTimeId">
+                
+                <div class="form-group">
+                    <label class="form-label">Name *</label>
+                    <input type="text" class="form-control" id="oneTimeName" required placeholder="e.g., Year-end Bonus">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Amount ({{ currency.symbol }}) *</label>
+                    <input type="number" step="0.01" class="form-control" id="oneTimeAmount" required placeholder="0.00">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Date *</label>
+                    <input type="date" class="form-control" id="oneTimeDate" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Category *</label>
+                    <select class="form-control" id="oneTimeCategory" required>
+                        <option value="bonus">Bonus</option>
+                        <option value="overtime">Overtime</option>
+                        <option value="gift">Gift</option>
+                        <option value="refund">Refund</option>
+                        <option value="freelance">Freelance</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Notes</label>
+                    <textarea class="form-control" id="oneTimeNotes" rows="3" placeholder="Optional notes..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 0.5rem;">
+                        <input type="checkbox" id="oneTimeUpcoming">
+                        <span class="form-label" style="margin: 0;">Upcoming (visible but not counted in projections)</span>
+                    </label>
+                </div>
+
+                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                    <button type="button" class="btn" onclick="closeModal('oneTimeModal')" style="background: var(--border);">Cancel</button>
+                    <button type="submit" class="btn btn-success">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Initialize function
+    function initializeIncomePage() {
+        // Set default date to today
+        const recurringStartDate = document.getElementById('recurringStartDate');
+        const oneTimeDate = document.getElementById('oneTimeDate');
+        
+        if (recurringStartDate) recurringStartDate.valueAsDate = new Date();
+        if (oneTimeDate) oneTimeDate.valueAsDate = new Date();
+    }
+
+    // Run initialization for full page loads (HTMX will call it via afterSwap event)
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeIncomePage);
+    } else if (!window.htmxSwapping) {
+        setTimeout(initializeIncomePage, 0);
+    }
+
+    // Recurring Income Functions
+    function openAddRecurringModal() {
+        document.getElementById('recurringModalTitle').textContent = 'Add Recurring Income';
+        document.getElementById('recurringForm').reset();
+        document.getElementById('recurringId').value = '';
+        document.getElementById('recurringStartDate').valueAsDate = new Date();
+        document.getElementById('recurringActive').checked = true;
+        document.getElementById('recurringUpcoming').checked = false;
+        openModal('recurringModal');
+    }
+
+    function editRecurringIncome(id) {
+        fetch(`/api/recurring-income/${id}`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('recurringModalTitle').textContent = 'Edit Recurring Income';
+                document.getElementById('recurringId').value = data.id;
+                document.getElementById('recurringName').value = data.name;
+                document.getElementById('recurringAmount').value = data.amount;
+                document.getElementById('recurringFrequency').value = data.frequency;
+                document.getElementById('recurringStartDate').value = data.start_date.split('T')[0];
+                document.getElementById('recurringEndDate').value = data.end_date ? data.end_date.split('T')[0] : '';
+                document.getElementById('recurringPayday').value = data.payday || '';
+                document.getElementById('recurringActive').checked = data.active;
+                document.getElementById('recurringUpcoming').checked = data.upcoming || false;
+                openModal('recurringModal');
+            });
+    }
+
+    function saveRecurringIncome(event) {
+        event.preventDefault();
+        
+        const id = document.getElementById('recurringId').value;
+        const paydayValue = document.getElementById('recurringPayday').value;
+        const data = {
+            name: document.getElementById('recurringName').value,
+            amount: document.getElementById('recurringAmount').value,
+            frequency: document.getElementById('recurringFrequency').value,
+            start_date: document.getElementById('recurringStartDate').value,
+            end_date: document.getElementById('recurringEndDate').value || null,
+            payday: paydayValue ? parseInt(paydayValue) : null,
+            active: document.getElementById('recurringActive').checked,
+            upcoming: document.getElementById('recurringUpcoming').checked
+        };
+
+        const url = id ? `/api/recurring-income/${id}` : '/api/recurring-income';
+        const method = id ? 'PUT' : 'POST';
+
+        fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                showAlert(id ? 'Recurring income updated!' : 'Recurring income added!', 'success');
+                closeModal('recurringModal');
+                setTimeout(() => location.reload(), 1000);
+            }
+        })
+        .catch(error => {
+            showAlert('Error saving recurring income', 'error');
+            console.error(error);
+        });
+    }
+
+    function deleteRecurringIncome(id) {
+        if (!confirm('Are you sure you want to delete this recurring income?')) return;
+
+        fetch(`/api/recurring-income/${id}`, { method: 'DELETE' })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    showAlert('Recurring income deleted!', 'success');
+                    setTimeout(() => location.reload(), 1000);
+                }
+            })
+            .catch(error => {
+                showAlert('Error deleting recurring income', 'error');
+                console.error(error);
+            });
+    }
+
+    // One-Time Income Functions
+    function openAddOneTimeModal() {
+        document.getElementById('oneTimeModalTitle').textContent = 'Add One-Time Income';
+        document.getElementById('oneTimeForm').reset();
+        document.getElementById('oneTimeId').value = '';
+        document.getElementById('oneTimeDate').valueAsDate = new Date();
+        document.getElementById('oneTimeUpcoming').checked = false;
+        openModal('oneTimeModal');
+    }
+
+    function editOneTimeIncome(id) {
+        fetch(`/api/one-time-income/${id}`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('oneTimeModalTitle').textContent = 'Edit One-Time Income';
+                document.getElementById('oneTimeId').value = data.id;
+                document.getElementById('oneTimeName').value = data.name;
+                document.getElementById('oneTimeAmount').value = data.amount;
+                document.getElementById('oneTimeDate').value = data.date.split('T')[0];
+                document.getElementById('oneTimeCategory').value = data.category;
+                document.getElementById('oneTimeNotes').value = data.notes || '';
+                document.getElementById('oneTimeUpcoming').checked = data.upcoming || false;
+                openModal('oneTimeModal');
+            });
+    }
+
+    function saveOneTimeIncome(event) {
+        event.preventDefault();
+        
+        const id = document.getElementById('oneTimeId').value;
+        const data = {
+            name: document.getElementById('oneTimeName').value,
+            amount: document.getElementById('oneTimeAmount').value,
+            date: document.getElementById('oneTimeDate').value,
+            category: document.getElementById('oneTimeCategory').value,
+            notes: document.getElementById('oneTimeNotes').value,
+            upcoming: document.getElementById('oneTimeUpcoming').checked
+        };
+
+        const url = id ? `/api/one-time-income/${id}` : '/api/one-time-income';
+        const method = id ? 'PUT' : 'POST';
+
+        fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                showAlert(id ? 'One-time income updated!' : 'One-time income added!', 'success');
+                closeModal('oneTimeModal');
+                setTimeout(() => location.reload(), 1000);
+            }
+        })
+        .catch(error => {
+            showAlert('Error saving one-time income', 'error');
+            console.error(error);
+        });
+    }
+
+    function deleteOneTimeIncome(id) {
+        if (!confirm('Are you sure you want to delete this one-time income?')) return;
+
+        fetch(`/api/one-time-income/${id}`, { method: 'DELETE' })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    showAlert('One-time income deleted!', 'success');
+                    setTimeout(() => location.reload(), 1000);
+                }
+            })
+            .catch(error => {
+                showAlert('Error deleting one-time income', 'error');
+                console.error(error);
+            });
+    }
+</script>
+

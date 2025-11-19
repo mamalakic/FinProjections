@@ -1,0 +1,462 @@
+<!-- Summary Stats -->
+<div class="grid">
+    <div class="stat-card success" title="Sum of all income across the selected time period&#10;&#10;Formula: Σ(Recurring Income + One-Time Income + Investment Income)&#10;&#10;This represents all money you expect to receive.">
+        <div class="stat-label">Total Projected Income <i class="ri-information-line" style="font-size: 0.9em; opacity: 0.7;"></i></div>
+        <div class="stat-value" id="totalIncome">$0.00</div>
+    </div>
+    <div class="stat-card danger" title="Sum of all expenses across the selected time period&#10;&#10;Formula: Σ(Recurring Expenses + One-Time Expenses)&#10;&#10;This represents all money you expect to spend.">
+        <div class="stat-label">Total Projected Expenses <i class="ri-information-line" style="font-size: 0.9em; opacity: 0.7;"></i></div>
+        <div class="stat-value" id="totalExpenses">$0.00</div>
+    </div>
+    <div class="stat-card" title="Running total of your net projection over time&#10;&#10;Formula: Σ(Net Amount for each month)&#10;&#10;Shows how your balance grows or shrinks month by month.">
+        <div class="stat-label">Cumulative Balance <i class="ri-information-line" style="font-size: 0.9em; opacity: 0.7;"></i></div>
+        <div class="stat-value" id="cumulativeBalance">$0.00</div>
+    </div>
+</div>
+
+<!-- Chart -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Financial Trends</h3>
+    </div>
+    <div class="card-body">
+        <canvas id="projectionChart" style="max-height: 400px;"></canvas>
+    </div>
+</div>
+
+<!-- Detailed Table -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Monthly Breakdown</h3>
+    </div>
+    <div style="overflow-x: auto;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Month</th>
+                    <th>Recurring Income</th>
+                    <th>One-Time Income</th>
+                    <th>Investment Income</th>
+                    <th>Total Income</th>
+                    <th>Recurring Expenses</th>
+                    <th>One-Time Expenses</th>
+                    <th>Total Expenses</th>
+                    <th>Net Amount</th>
+                    <th>Cumulative Balance</th>
+                </tr>
+            </thead>
+            <tbody id="projectionsTable">
+                {% for proj in projections %}
+                <tr class="month-row" onclick="toggleMonthDetails('{{ proj.month_date }}')" style="cursor: pointer;">
+                    <td><strong>{{ proj.month }}</strong></td>
+                    <td style="color: var(--success);">{{ currency.symbol }}{{ "{:,.2f}".format(proj.recurring_income) }}</td>
+                    <td style="color: var(--success);">{{ currency.symbol }}{{ "{:,.2f}".format(proj.one_time_income) }}</td>
+                    <td style="color: var(--accent-green); font-family: var(--font-mono);">{{ currency.symbol }}{{ "{:,.2f}".format(proj.get('investment_income', 0)) }}</td>
+                    <td style="color: var(--success); font-weight: 600;">{{ currency.symbol }}{{ "{:,.2f}".format(proj.total_income) }}</td>
+                    <td style="color: var(--danger);">{{ currency.symbol }}{{ "{:,.2f}".format(proj.recurring_expenses) }}</td>
+                    <td style="color: var(--danger);">{{ currency.symbol }}{{ "{:,.2f}".format(proj.one_time_expenses) }}</td>
+                    <td style="color: var(--danger); font-weight: 600;">{{ currency.symbol }}{{ "{:,.2f}".format(proj.total_expenses) }}</td>
+                    <td class="{% if proj.net_amount >= 0 %}text-success{% else %}text-danger{% endif %}" style="font-weight: 700;">
+                        {{ currency.symbol }}{{ "{:,.2f}".format(proj.net_amount) }}
+                    </td>
+                    <td class="{% if proj.cumulative_balance >= 0 %}text-primary{% else %}text-danger{% endif %}" style="font-weight: 700;">
+                        {{ currency.symbol }}{{ "{:,.2f}".format(proj.cumulative_balance) }}
+                    </td>
+                </tr>
+                <tr id="details-{{ proj.month_date }}" class="month-details" style="display: none;">
+                    <td colspan="10" style="background: var(--light); padding: 0;">
+                        <div class="details-content" style="padding: 1.5rem;">
+                            <div class="loading-message">Loading details...</div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script id="projections-data" type="application/json">{{ projections | tojson | safe }}</script>
+<script>
+    let chart = null;
+    let projectionsData = [];
+    
+    // Parse projections data safely
+    function getProjectionsData() {
+        const dataElement = document.getElementById('projections-data');
+        if (dataElement && dataElement.textContent) {
+            try {
+                return JSON.parse(dataElement.textContent);
+            } catch (e) {
+                console.error('Error parsing projections data:', e);
+                return [];
+            }
+        }
+        return [];
+    }
+
+    function updateSummaryStats(projections) {
+        const totalIncome = projections.reduce((sum, p) => sum + p.total_income, 0);
+        const totalExpenses = projections.reduce((sum, p) => sum + p.total_expenses, 0);
+        const cumulativeBalance = projections[projections.length - 1]?.cumulative_balance || 0;
+
+        document.getElementById('totalIncome').textContent = formatCurrency(totalIncome);
+        document.getElementById('totalExpenses').textContent = formatCurrency(totalExpenses);
+        document.getElementById('cumulativeBalance').textContent = formatCurrency(cumulativeBalance);
+    }
+
+    function createChart(projections) {
+        const chartElement = document.getElementById('projectionChart');
+        if (!chartElement) {
+            console.error('Chart canvas element not found');
+            return;
+        }
+        
+        const ctx = chartElement.getContext('2d');
+        
+        // Destroy existing chart if it exists
+        if (chart) {
+            try {
+                chart.destroy();
+            } catch (e) {
+                console.log('Error destroying chart:', e);
+            }
+            chart = null;
+        }
+
+        chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: projections.map(p => p.month),
+                datasets: [
+                    {
+                        label: 'Total Income',
+                        data: projections.map(p => p.total_income),
+                        borderColor: '#00C853',
+                        backgroundColor: 'rgba(0, 200, 83, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: true
+                    },
+                    {
+                        label: 'Total Expenses',
+                        data: projections.map(p => p.total_expenses),
+                        borderColor: '#FF3D71',
+                        backgroundColor: 'rgba(255, 61, 113, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: true
+                    },
+                    {
+                        label: 'Net Amount',
+                        data: projections.map(p => p.net_amount),
+                        borderColor: '#0066FF',
+                        backgroundColor: 'rgba(0, 102, 255, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: true
+                    },
+                    {
+                        label: 'Cumulative Balance',
+                        data: projections.map(p => p.cumulative_balance),
+                        borderColor: '#00C9A7',
+                        backgroundColor: 'rgba(0, 201, 167, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + formatCurrency(context.parsed.y);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        ticks: {
+                            callback: function(value) {
+                                return currentCurrencySymbol + value.toLocaleString();
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function updateTable(projections) {
+        const tbody = document.getElementById('projectionsTable');
+        tbody.innerHTML = projections.map(proj => `
+            <tr class="month-row" onclick="toggleMonthDetails('${proj.month_date}')" style="cursor: pointer;">
+                <td><strong>${proj.month}</strong></td>
+                <td style="color: var(--success);">${formatCurrency(proj.recurring_income)}</td>
+                <td style="color: var(--success);">${formatCurrency(proj.one_time_income)}</td>
+                <td style="color: var(--accent-green); font-family: var(--font-mono);">${formatCurrency(proj.investment_income || 0)}</td>
+                <td style="color: var(--success); font-weight: 600;">${formatCurrency(proj.total_income)}</td>
+                <td style="color: var(--danger);">${formatCurrency(proj.recurring_expenses)}</td>
+                <td style="color: var(--danger);">${formatCurrency(proj.one_time_expenses)}</td>
+                <td style="color: var(--danger); font-weight: 600;">${formatCurrency(proj.total_expenses)}</td>
+                <td style="font-weight: 700; color: ${proj.net_amount >= 0 ? 'var(--success)' : 'var(--danger)'};">
+                    ${formatCurrency(proj.net_amount)}
+                </td>
+                <td style="font-weight: 700; color: ${proj.cumulative_balance >= 0 ? 'var(--primary)' : 'var(--danger)'};">
+                    ${formatCurrency(proj.cumulative_balance)}
+                </td>
+            </tr>
+            <tr id="details-${proj.month_date}" class="month-details" style="display: none;">
+                <td colspan="10" style="background: var(--light); padding: 0;">
+                    <div class="details-content" style="padding: 1.5rem;">
+                        <div class="loading-message">Loading details...</div>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function loadProjections(months) {
+        const url = months === 'until-now' 
+            ? '/api/projections/until-now'
+            : `/api/projections?months=${months}`;
+        
+        console.log('Loading projections from:', url);
+        
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                console.log('Projections data received:', data);
+                if (data.length > 0) {
+                    console.log('Sample month data:', data[0]);
+                    console.log('Fields in first month:', Object.keys(data[0]));
+                }
+                projectionsData = data;
+                updateSummaryStats(data);
+                createChart(data);
+                updateTable(data);
+            })
+            .catch(error => {
+                console.error('Error loading projections:', error);
+                showAlert('Error loading projections', 'error');
+            });
+    }
+
+    // Initialize function
+    function initializeDashboard() {
+        // Get fresh data from the DOM
+        projectionsData = getProjectionsData();
+        console.log('Initializing dashboard, projectionsData length:', projectionsData.length);
+        
+        // Load "until-now" data on page load
+        if (projectionsData.length === 0) {
+            console.log('Loading projections via API...');
+            loadProjections('until-now');
+        } else {
+            console.log('Using server-rendered projections data');
+            updateSummaryStats(projectionsData);
+            createChart(projectionsData);
+        }
+
+        // Month selector
+        const monthsSelect = document.getElementById('monthsSelect');
+        if (monthsSelect) {
+            // Remove old event listeners by cloning
+            const newMonthsSelect = monthsSelect.cloneNode(true);
+            monthsSelect.parentNode.replaceChild(newMonthsSelect, monthsSelect);
+            
+            newMonthsSelect.addEventListener('change', (e) => {
+                loadProjections(e.target.value);
+            });
+        }
+    }
+
+    // Run initialization for full page loads (HTMX will call it via afterSwap event)
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeDashboard);
+    } else if (!window.htmxSwapping) {
+        // Only run immediately if this is NOT an HTMX swap
+        // HTMX swaps will be handled by the afterSwap event in base.html
+        setTimeout(initializeDashboard, 0);
+    }
+
+    // Month details expansion
+    let loadedMonths = {};
+
+    function toggleMonthDetails(monthDate) {
+        const detailsRow = document.getElementById(`details-${monthDate}`);
+        const isVisible = detailsRow.style.display !== 'none';
+        
+        if (isVisible) {
+            detailsRow.style.display = 'none';
+        } else {
+            detailsRow.style.display = 'table-row';
+            
+            // Load details if not already loaded
+            if (!loadedMonths[monthDate]) {
+                loadMonthDetails(monthDate);
+            }
+        }
+    }
+
+    function loadMonthDetails(monthDate) {
+        const [year, month] = monthDate.split('-');
+        const detailsContent = document.querySelector(`#details-${monthDate} .details-content`);
+        
+        fetch(`/api/month-details/${year}/${month}`)
+            .then(response => response.json())
+            .then(data => {
+                loadedMonths[monthDate] = data;
+                renderMonthDetails(monthDate, data);
+            })
+            .catch(error => {
+                console.error('Error loading month details:', error);
+                detailsContent.innerHTML = '<p style="color: var(--danger);">Error loading details</p>';
+            });
+    }
+
+    function renderMonthDetails(monthDate, data) {
+        const detailsContent = document.querySelector(`#details-${monthDate} .details-content`);
+        const [year, month] = monthDate.split('-');
+        
+        // Sort data by day (descending - most recent first)
+        if (data.recurring_income.length > 0) {
+            data.recurring_income.sort((a, b) => (b.payday || 0) - (a.payday || 0));
+        }
+        if (data.one_time_income.length > 0) {
+            data.one_time_income.sort((a, b) => (b.day || 0) - (a.day || 0));
+        }
+        if (data.recurring_expenses.length > 0) {
+            data.recurring_expenses.sort((a, b) => (b.payday || 0) - (a.payday || 0));
+        }
+        if (data.one_time_expenses.length > 0) {
+            data.one_time_expenses.sort((a, b) => (b.day || 0) - (a.day || 0));
+        }
+        
+        let html = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">';
+        
+        // Income section
+        html += '<div>';
+        html += '<h4 style="color: var(--success); margin-bottom: 1rem;">💰 Income</h4>';
+        
+        if (data.recurring_income.length > 0) {
+            html += '<h5 style="margin: 1rem 0 0.5rem 0;">Recurring Income</h5>';
+            html += '<div style="background: white; border-radius: 8px; padding: 1rem;">';
+            data.recurring_income.forEach(item => {
+                html += `<div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border);">
+                    <div>
+                        <strong>${item.name}</strong>
+                        ${item.payday ? `<br><small style="color: var(--text-light);">Day ${item.payday} ${item.has_adjustment ? '(adjusted)' : ''}</small>` : ''}
+                        ${item.payday && !item.has_adjustment ? `<button onclick="adjustPayday('income', '${item.id}', '${year}', '${month}', ${item.payday})" class="btn btn-sm" style="margin-left: 0.5rem; padding: 0.25rem 0.5rem; font-size: 0.75rem;">Adjust</button>` : ''}
+                    </div>
+                    <strong style="color: var(--success);">${formatCurrency(item.amount)}</strong>
+                </div>`;
+            });
+            html += '</div>';
+        }
+        
+        if (data.one_time_income.length > 0) {
+            html += '<h5 style="margin: 1rem 0 0.5rem 0;">One-Time Income</h5>';
+            html += '<div style="background: white; border-radius: 8px; padding: 1rem;">';
+            data.one_time_income.forEach(item => {
+                html += `<div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border);">
+                    <div>
+                        <strong>${item.name}</strong>
+                        <br><small style="color: var(--text-light);">Day ${item.day} - ${item.category}</small>
+                    </div>
+                    <strong style="color: var(--success);">${formatCurrency(item.amount)}</strong>
+                </div>`;
+            });
+            html += '</div>';
+        }
+        
+        if (data.recurring_income.length === 0 && data.one_time_income.length === 0) {
+            html += '<p style="color: var(--text-light); font-style: italic;">No income for this month</p>';
+        }
+        
+        html += '</div>';
+        
+        // Expenses section
+        html += '<div>';
+        html += '<h4 style="color: var(--danger); margin-bottom: 1rem;">💳 Expenses</h4>';
+        
+        if (data.recurring_expenses.length > 0) {
+            html += '<h5 style="margin: 1rem 0 0.5rem 0;">Recurring Expenses</h5>';
+            html += '<div style="background: white; border-radius: 8px; padding: 1rem;">';
+            data.recurring_expenses.forEach(item => {
+                html += `<div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border);">
+                    <div>
+                        <strong>${item.name}</strong>
+                        <br><small style="color: var(--text-light);">${item.category}${item.payday ? ` - Day ${item.payday}` : ''} ${item.has_adjustment ? '(adjusted)' : ''}</small>
+                        ${item.payday && !item.has_adjustment ? `<button onclick="adjustPayday('expense', '${item.id}', '${year}', '${month}', ${item.payday})" class="btn btn-sm" style="margin-left: 0.5rem; padding: 0.25rem 0.5rem; font-size: 0.75rem;">Adjust</button>` : ''}
+                    </div>
+                    <strong style="color: var(--danger);">${formatCurrency(item.amount)}</strong>
+                </div>`;
+            });
+            html += '</div>';
+        }
+        
+        if (data.one_time_expenses.length > 0) {
+            html += '<h5 style="margin: 1rem 0 0.5rem 0;">One-Time Expenses</h5>';
+            html += '<div style="background: white; border-radius: 8px; padding: 1rem;">';
+            data.one_time_expenses.forEach(item => {
+                html += `<div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border);">
+                    <div>
+                        <strong>${item.name}</strong>
+                        <br><small style="color: var(--text-light);">Day ${item.day} - ${item.category}</small>
+                    </div>
+                    <strong style="color: var(--danger);">${formatCurrency(item.amount)}</strong>
+                </div>`;
+            });
+            html += '</div>';
+        }
+        
+        if (data.recurring_expenses.length === 0 && data.one_time_expenses.length === 0) {
+            html += '<p style="color: var(--text-light); font-style: italic;">No expenses for this month</p>';
+        }
+        
+        html += '</div>';
+        html += '</div>';
+        
+        detailsContent.innerHTML = html;
+    }
+
+    function adjustPayday(type, id, year, month, currentDay) {
+        const newDay = prompt(`Enter new day for this ${type} (1-31):`, currentDay);
+        if (newDay && newDay >= 1 && newDay <= 31) {
+            fetch('/api/payday-adjustment', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    recurring_type: type,
+                    recurring_id: id,
+                    year: parseInt(year),
+                    month: parseInt(month),
+                    adjusted_day: parseInt(newDay)
+                })
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    showAlert(`Payday adjusted to day ${newDay} for this month`, 'success');
+                    // Reload the month details
+                    const monthDate = `${year}-${month.padStart(2, '0')}`;
+                    delete loadedMonths[monthDate];
+                    loadMonthDetails(monthDate);
+                }
+            })
+            .catch(error => {
+                showAlert('Error adjusting payday', 'error');
+                console.error(error);
+            });
+        }
+    }
+</script>

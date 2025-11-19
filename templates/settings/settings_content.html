@@ -1,0 +1,259 @@
+<!-- Currency Settings -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Currency Settings</h3>
+    </div>
+    <div class="card-body">
+        <form id="currencyForm">
+            <div class="form-group">
+                <label class="form-label">Currency</label>
+                <select class="form-control" id="currencySelect" style="max-width: 300px;">
+                    <option value="USD|$" {% if currency.code == 'USD' %}selected{% endif %}>USD ($)</option>
+                    <option value="EUR|€" {% if currency.code == 'EUR' %}selected{% endif %}>EUR (€)</option>
+                    <option value="GBP|£" {% if currency.code == 'GBP' %}selected{% endif %}>GBP (£)</option>
+                    <option value="JPY|¥" {% if currency.code == 'JPY' %}selected{% endif %}>JPY (¥)</option>
+                    <option value="CAD|C$" {% if currency.code == 'CAD' %}selected{% endif %}>CAD (C$)</option>
+                    <option value="AUD|A$" {% if currency.code == 'AUD' %}selected{% endif %}>AUD (A$)</option>
+                    <option value="CHF|CHF" {% if currency.code == 'CHF' %}selected{% endif %}>CHF (CHF)</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary"><i class="ri-save-line"></i> Save Currency</button>
+        </form>
+    </div>
+</div>
+
+<!-- Trading212 API Settings -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Trading212 API Integration</h3>
+    </div>
+    <div class="card-body">
+        <div id="apiStatus" style="margin-bottom: 1.5rem; padding: 1rem; border-radius: 8px; display: none;">
+            <!-- Status will be populated by JavaScript -->
+        </div>
+
+        <div style="margin-bottom: 1.5rem; padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">
+            <h4 style="margin-bottom: 0.5rem; font-size: 1rem;">How to get your Trading212 API credentials:</h4>
+            <ol style="margin: 0.5rem 0 0 1.5rem; color: var(--text-light); font-size: 0.9rem;">
+                <li>Open the Trading212 mobile app</li>
+                <li>Go to <strong>Settings</strong> → <strong>API (Beta)</strong></li>
+                <li>Generate a new API key</li>
+                <li>Copy both the <strong>API Key</strong> and <strong>API Secret</strong></li>
+                <li>Paste them below</li>
+            </ol>
+            <p style="margin-top: 0.75rem; font-size: 0.85rem; color: var(--text-light);">
+                📖 <a href="https://docs.trading212.com/api/section/general-information/quickstart" target="_blank" style="color: var(--primary);">View Trading212 API Documentation</a>
+            </p>
+        </div>
+
+        <form id="trading212Form">
+            <div class="form-group">
+                <label class="form-label">API Key</label>
+                <input type="text" class="form-control" id="apiKey" placeholder="Your Trading212 API Key" autocomplete="off">
+                <small style="color: var(--text-light); font-size: 0.75rem;">This will be stored securely in your database</small>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">API Secret</label>
+                <input type="password" class="form-control" id="apiSecret" placeholder="Your Trading212 API Secret" autocomplete="off">
+                <small style="color: var(--text-light); font-size: 0.75rem;">Keep this secret and never share it</small>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Environment</label>
+                <select class="form-control" id="apiEnvironment" style="max-width: 300px;">
+                    <option value="live">Live Trading (Real Money)</option>
+                    <option value="demo">Demo / Paper Trading</option>
+                </select>
+                <small style="color: var(--text-light); font-size: 0.75rem;">Use Demo for testing without risking real money</small>
+            </div>
+
+            <div style="display: flex; gap: 0.5rem;">
+                <button type="submit" class="btn btn-success"><i class="ri-save-line"></i> Save API Credentials</button>
+                <button type="button" class="btn btn-primary" onclick="testConnection()"><i class="ri-refresh-line"></i> Test Connection</button>
+                <button type="button" class="btn btn-danger" onclick="deleteCredentials()" id="deleteBtn" style="display: none;"><i class="ri-delete-bin-line"></i> Remove Credentials</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- About -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">About FinProjections</h3>
+    </div>
+    <div class="card-body">
+        <p style="color: var(--text-light);">
+            <strong>Version:</strong> 1.0.0<br>
+            <strong>Features:</strong> Income tracking, Expense management, Investment portfolio, Trading212 integration
+        </p>
+    </div>
+</div>
+
+<script>
+    // Load API status on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        loadApiStatus();
+    });
+
+    // Currency Form
+    document.getElementById('currencyForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const selected = document.getElementById('currencySelect').value.split('|');
+        const data = {
+            code: selected[0],
+            symbol: selected[1]
+        };
+
+        fetch('/api/settings/currency', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                showAlert('Currency updated successfully', 'success');
+                setTimeout(() => location.reload(), 1000);
+            }
+        })
+        .catch(error => {
+            showAlert('Error updating currency', 'error');
+            console.error(error);
+        });
+    });
+
+    // Trading212 API Form
+    document.getElementById('trading212Form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const apiKey = document.getElementById('apiKey').value.trim();
+        const apiSecret = document.getElementById('apiSecret').value.trim();
+        const environment = document.getElementById('apiEnvironment').value;
+
+        if (!apiKey || !apiSecret) {
+            showAlert('Please enter both API Key and API Secret', 'error');
+            return;
+        }
+
+        const data = {
+            api_key: apiKey,
+            api_secret: apiSecret,
+            environment: environment
+        };
+
+        fetch('/api/settings/trading212', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                showAlert('Trading212 API credentials saved successfully!', 'success');
+                // Clear the form
+                document.getElementById('apiKey').value = '';
+                document.getElementById('apiSecret').value = '';
+                // Reload status
+                setTimeout(() => loadApiStatus(), 1000);
+            }
+        })
+        .catch(error => {
+            showAlert('Error saving credentials', 'error');
+            console.error(error);
+        });
+    });
+
+    function loadApiStatus() {
+        fetch('/api/settings/trading212')
+            .then(response => response.json())
+            .then(result => {
+                const statusDiv = document.getElementById('apiStatus');
+                const deleteBtn = document.getElementById('deleteBtn');
+                
+                if (result.configured) {
+                    statusDiv.style.display = 'block';
+                    statusDiv.style.background = 'var(--success-light, #d4edda)';
+                    statusDiv.style.borderLeft = '4px solid var(--success)';
+                    statusDiv.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="ri-checkbox-circle-fill" style="color: var(--success); font-size: 1.5rem;"></i>
+                            <div>
+                                <strong style="color: var(--success);">Trading212 API Connected</strong>
+                                <p style="margin: 0.25rem 0 0 0; font-size: 0.85rem; color: var(--text-light);">
+                                    Environment: <strong>${result.environment}</strong>
+                                </p>
+                            </div>
+                        </div>
+                    `;
+                    deleteBtn.style.display = 'inline-block';
+                    
+                    // Set environment dropdown
+                    document.getElementById('apiEnvironment').value = result.environment;
+                } else {
+                    statusDiv.style.display = 'block';
+                    statusDiv.style.background = 'var(--warning-light, #fff3cd)';
+                    statusDiv.style.borderLeft = '4px solid var(--warning, #ffc107)';
+                    statusDiv.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="ri-error-warning-fill" style="color: var(--warning, #ffc107); font-size: 1.5rem;"></i>
+                            <div>
+                                <strong>Trading212 API Not Configured</strong>
+                                <p style="margin: 0.25rem 0 0 0; font-size: 0.85rem; color: var(--text-light);">
+                                    Enter your API credentials below to enable automatic syncing
+                                </p>
+                            </div>
+                        </div>
+                    `;
+                    deleteBtn.style.display = 'none';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading API status:', error);
+            });
+    }
+
+    function testConnection() {
+        showAlert('Testing connection to Trading212...', 'info');
+        
+        // Try to sync prices as a connection test
+        fetch('/api/investment-sync-prices', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(result => {
+            print(result)
+            if (result.success) {
+                showAlert('✅ Connection successful! Found ' + result.total_positions + ' positions in your Trading212 account.', 'success');
+            } else {
+                showAlert('❌ Connection failed: ' + result.error, 'error');
+            }
+        })
+        .catch(error => {
+            showAlert('❌ Connection failed: ' + error.message, 'error');
+        });
+    }
+
+    function deleteCredentials() {
+        if (!confirm('Are you sure you want to remove your Trading212 API credentials?')) {
+            return;
+        }
+
+        fetch('/api/settings/trading212', {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                showAlert('Trading212 API credentials removed', 'success');
+                setTimeout(() => loadApiStatus(), 1000);
+            }
+        })
+        .catch(error => {
+            showAlert('Error removing credentials', 'error');
+            console.error(error);
+        });
+    }
+</script>

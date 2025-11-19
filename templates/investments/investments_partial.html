@@ -1,0 +1,14 @@
+{% extends "base_partial.html" %}
+
+{% block page_title %}Investment Tracking{% endblock %}
+
+{% block topbar_actions %}
+<button class="btn btn-primary" onclick="openAddPortfolioModal()"><i class="ri-add-line"></i> Add Portfolio</button>
+<button class="btn btn-success" onclick="openAddContributionModal()"><i class="ri-add-circle-line"></i> Add Contribution</button>
+{% endblock %}
+
+{% block content %}
+{% include "investments/investments_content.html" %}
+{% endblock %}
+
+{% block extra_js %}{% endblock %}
