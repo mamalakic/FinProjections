@@ -67,11 +67,15 @@ def calculate_monthly_projections(months=12):
     """Calculate financial projections for the next N months"""
     from database import (
         recurring_income_collection, one_time_income_collection,
-        recurring_expense_collection, one_time_expense_collection, db
+        recurring_expense_collection, one_time_expense_collection, db, settings_collection
     )
     
     projections = []
     today = datetime.now().date()
+    
+    # Get starting balance from settings (if exists)
+    settings = settings_collection.find_one()
+    cumulative_balance = settings.get('starting_balance', 0) if settings else 0
     
     # Start from the first day of the current month
     current_month_start = today.replace(day=1)
@@ -163,6 +167,9 @@ def calculate_monthly_projections(months=12):
         total_expenses = total_recurring_expenses + total_one_time_expenses
         net_amount = total_income - total_expenses
         
+        # Update cumulative balance
+        cumulative_balance += net_amount
+        
         projections.append({
             'month': month_start.strftime('%B %Y'),
             'month_date': month_start.isoformat(),
@@ -173,7 +180,8 @@ def calculate_monthly_projections(months=12):
             'total_expenses': round(total_expenses, 2),
             'recurring_expenses': round(total_recurring_expenses, 2),
             'one_time_expenses': round(total_one_time_expenses, 2),
-            'net_amount': round(net_amount, 2)
+            'net_amount': round(net_amount, 2),
+            'cumulative_balance': round(cumulative_balance, 2)
         })
     
     return projections

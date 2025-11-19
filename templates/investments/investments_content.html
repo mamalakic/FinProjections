@@ -27,7 +27,7 @@
                     <td style="color: var(--success); font-weight: 600; font-family: var(--font-mono);">{{ currency.symbol }}{{ "{:,.2f}".format(portfolio.current_value) }}</td>
                     <td style="font-family: var(--font-mono);">{{ currency.symbol }}{{ "{:,.2f}".format(portfolio.monthly_contribution) }}</td>
                     <td style="font-family: var(--font-mono);">{{ "{:.2f}".format(portfolio.mean_return_percent) }}%</td>
-                    <td>{{ portfolio.start_date.strftime('%Y-%m-%d') }}</td>
+                    <td class="format-date">{{ portfolio.start_date.strftime('%Y-%m-%d') }}</td>
                     <td>
                         {% if portfolio.active %}
                         <span class="badge badge-success">Active</span>
@@ -868,4 +868,25 @@
         };
         reader.readAsText(file);
     });
+
+    // Format all dates on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        formatAllDates();
+    });
+
+    // Also format dates after HTMX swap
+    if (typeof htmx !== 'undefined') {
+        htmx.on('htmx:afterSwap', function() {
+            formatAllDates();
+        });
+    }
+
+    function formatAllDates() {
+        document.querySelectorAll('.format-date').forEach(function(element) {
+            const dateStr = element.textContent.trim();
+            if (dateStr && dateStr !== 'Ongoing' && dateStr !== '-') {
+                element.textContent = formatDate(dateStr);
+            }
+        });
+    }
 </script>

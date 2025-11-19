@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Wishlist - FinProjections{% endblock %}
+
+{% block page_title %}Wishlist{% endblock %}
+
+{% block topbar_actions %}
+<button class="btn btn-primary" onclick="openAddModal()"><i class="ri-add-line"></i> Add Wishlist Item</button>
+<button class="btn btn-success" onclick="refreshAnalysis()"><i class="ri-refresh-line"></i> Refresh Analysis</button>
+{% endblock %}
+
+{% block content %}
+{% include "wishlist/wishlist_content.html" %}
+{% endblock %}
+
+{% block extra_js %}{% endblock %}
+

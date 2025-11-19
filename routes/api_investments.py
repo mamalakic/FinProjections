@@ -4,7 +4,8 @@ from datetime import datetime
 from bson import ObjectId
 from database import (
     recurring_income_collection,
-    get_currency_settings
+    get_currency_settings,
+    get_date_format
 )
 
 # Create a separate collection for investments
@@ -22,6 +23,7 @@ def investments():
     portfolios = list(investment_portfolio_collection.find())
     contributions = list(investment_contributions_collection.find())
     currency = get_currency_settings()
+    date_format = get_date_format()
     
     # Check if this is an HTMX request
     is_htmx = request.headers.get('HX-Request') == 'true'
@@ -30,7 +32,8 @@ def investments():
     return render_template(template, 
                          portfolios=portfolios, 
                          contributions=contributions,
-                         currency=currency)
+                         currency=currency,
+                         date_format=date_format)
 
 # Portfolio Management
 @api_investments_bp.route('/api/investment-portfolio', methods=['GET'])

@@ -22,6 +22,26 @@
     </div>
 </div>
 
+<!-- Date Format Settings -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Date Format Settings</h3>
+    </div>
+    <div class="card-body">
+        <form id="dateFormatForm">
+            <div class="form-group">
+                <label class="form-label">Date Format</label>
+                <select class="form-control" id="dateFormatSelect" style="max-width: 300px;">
+                    <option value="MM/DD/YYYY" {% if date_format == 'MM/DD/YYYY' %}selected{% endif %}>MM/DD/YYYY (12/31/2025)</option>
+                    <option value="DD/MM/YYYY" {% if date_format == 'DD/MM/YYYY' %}selected{% endif %}>DD/MM/YYYY (31/12/2025)</option>
+                    <option value="YYYY-MM-DD" {% if date_format == 'YYYY-MM-DD' %}selected{% endif %}>YYYY-MM-DD (2025-12-31)</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary"><i class="ri-save-line"></i> Save Date Format</button>
+        </form>
+    </div>
+</div>
+
 <!-- Trading212 API Settings -->
 <div class="card">
     <div class="card-header">
@@ -77,19 +97,6 @@
     </div>
 </div>
 
-<!-- About -->
-<div class="card">
-    <div class="card-header">
-        <h3 class="card-title">About FinProjections</h3>
-    </div>
-    <div class="card-body">
-        <p style="color: var(--text-light);">
-            <strong>Version:</strong> 1.0.0<br>
-            <strong>Features:</strong> Income tracking, Expense management, Investment portfolio, Trading212 integration
-        </p>
-    </div>
-</div>
-
 <script>
     // Load API status on page load
     document.addEventListener('DOMContentLoaded', function() {
@@ -120,6 +127,31 @@
         })
         .catch(error => {
             showAlert('Error updating currency', 'error');
+            console.error(error);
+        });
+    });
+
+    // Date Format Form
+    document.getElementById('dateFormatForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const format = document.getElementById('dateFormatSelect').value;
+        const data = { format: format };
+
+        fetch('/api/settings/date-format', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                showAlert('Date format updated successfully', 'success');
+                setTimeout(() => location.reload(), 1000);
+            }
+        })
+        .catch(error => {
+            showAlert('Error updating date format', 'error');
             console.error(error);
         });
     });

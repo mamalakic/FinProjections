@@ -16,31 +16,23 @@
                     <th>Start Date</th>
                     <th>End Date</th>
                     <th>Status</th>
-                    <th>Type</th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for expense in recurring %}
-                <tr>
+                <tr {% if expense.get('upcoming', False) %}style="opacity: 0.5; filter: saturate(0.4);"{% endif %}>
                     <td><strong>{{ expense.name }}</strong></td>
                     <td style="color: var(--danger); font-weight: 600;">{{ currency.symbol }}{{ "{:,.2f}".format(expense.amount) }}</td>
                     <td><span class="badge badge-primary">{{ expense.frequency }}</span></td>
                     <td><span class="badge badge-warning">{{ expense.category }}</span></td>
-                    <td>{{ expense.start_date.strftime('%Y-%m-%d') }}</td>
-                    <td>{{ expense.end_date.strftime('%Y-%m-%d') if expense.end_date else 'Ongoing' }}</td>
+                    <td class="format-date">{{ expense.start_date.strftime('%Y-%m-%d') }}</td>
+                    <td>{% if expense.end_date %}<span class="format-date">{{ expense.end_date.strftime('%Y-%m-%d') }}</span>{% else %}Ongoing{% endif %}</td>
                     <td>
                         {% if expense.active %}
                         <span class="badge badge-success">Active</span>
                         {% else %}
                         <span class="badge badge-danger">Inactive</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if expense.get('upcoming', False) %}
-                        <span class="badge" style="background: #ff9800; color: white;">Upcoming</span>
-                        {% else %}
-                        <span class="badge badge-success">Counted</span>
                         {% endif %}
                     </td>
                     <td>
@@ -73,25 +65,17 @@
                     <th>Date</th>
                     <th>Category</th>
                     <th>Notes</th>
-                    <th>Type</th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for expense in one_time %}
-                <tr>
+                <tr {% if expense.get('upcoming', False) %}style="opacity: 0.5; filter: saturate(0.4);"{% endif %}>
                     <td><strong>{{ expense.name }}</strong></td>
                     <td style="color: var(--danger); font-weight: 600;">{{ currency.symbol }}{{ "{:,.2f}".format(expense.amount) }}</td>
-                    <td>{{ expense.date.strftime('%Y-%m-%d') }}</td>
+                    <td class="format-date">{{ expense.date.strftime('%Y-%m-%d') }}</td>
                     <td><span class="badge badge-warning">{{ expense.category }}</span></td>
                     <td>{{ expense.notes or '-' }}</td>
-                    <td>
-                        {% if expense.get('upcoming', False) %}
-                        <span class="badge" style="background: #ff9800; color: white;">Upcoming</span>
-                        {% else %}
-                        <span class="badge badge-success">Counted</span>
-                        {% endif %}
-                    </td>
                     <td>
                         <button class="btn btn-sm btn-primary" onclick="editOneTimeExpense('{{ expense._id }}')">Edit</button>
                         <button class="btn btn-sm btn-danger" onclick="deleteOneTimeExpense('{{ expense._id }}')">Delete</button>
@@ -230,7 +214,7 @@
                         <option value="transportation">Transportation</option>
                         <option value="bills">Bills</option>
                         <option value="gifts">Gifts</option>
-                        <option value="home">Home Improvement</option>
+                        <option value="home">Take out</option>
                         <option value="education">Education</option>
                         <option value="travel">Travel</option>
                         <option value="other">Other</option>
@@ -438,5 +422,26 @@
                 showAlert('Error deleting one-time expense', 'error');
                 console.error(error);
             });
+    }
+
+    // Format all dates on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        formatAllDates();
+    });
+
+    // Also format dates after HTMX swap
+    if (typeof htmx !== 'undefined') {
+        htmx.on('htmx:afterSwap', function() {
+            formatAllDates();
+        });
+    }
+
+    function formatAllDates() {
+        document.querySelectorAll('.format-date').forEach(function(element) {
+            const dateStr = element.textContent.trim();
+            if (dateStr && dateStr !== 'Ongoing' && dateStr !== '-') {
+                element.textContent = formatDate(dateStr);
+            }
+        });
     }
 </script>

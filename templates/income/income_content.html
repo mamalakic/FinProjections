@@ -27,8 +27,8 @@
                     <td><strong>{{ income.name }}</strong></td>
                     <td style="color: var(--success); font-weight: 600;">{{ currency.symbol }}{{ "{:,.2f}".format(income.amount) }}</td>
                     <td><span class="badge badge-primary">{{ income.frequency }}</span></td>
-                    <td>{{ income.start_date.strftime('%Y-%m-%d') }}</td>
-                    <td>{{ income.end_date.strftime('%Y-%m-%d') if income.end_date else 'Ongoing' }}</td>
+                    <td class="format-date">{{ income.start_date.strftime('%Y-%m-%d') }}</td>
+                    <td>{% if income.end_date %}<span class="format-date">{{ income.end_date.strftime('%Y-%m-%d') }}</span>{% else %}Ongoing{% endif %}</td>
                     <td>
                         {% if income.active %}
                         <span class="badge badge-success">Active</span>
@@ -82,7 +82,7 @@
                 <tr>
                     <td><strong>{{ income.name }}</strong></td>
                     <td style="color: var(--success); font-weight: 600;">{{ currency.symbol }}{{ "{:,.2f}".format(income.amount) }}</td>
-                    <td>{{ income.date.strftime('%Y-%m-%d') }}</td>
+                    <td class="format-date">{{ income.date.strftime('%Y-%m-%d') }}</td>
                     <td><span class="badge badge-warning">{{ income.category }}</span></td>
                     <td>{{ income.notes or '-' }}</td>
                     <td>
@@ -414,6 +414,27 @@
                 showAlert('Error deleting one-time income', 'error');
                 console.error(error);
             });
+    }
+
+    // Format all dates on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        formatAllDates();
+    });
+
+    // Also format dates after HTMX swap
+    if (typeof htmx !== 'undefined') {
+        htmx.on('htmx:afterSwap', function() {
+            formatAllDates();
+        });
+    }
+
+    function formatAllDates() {
+        document.querySelectorAll('.format-date').forEach(function(element) {
+            const dateStr = element.textContent.trim();
+            if (dateStr && dateStr !== 'Ongoing' && dateStr !== '-') {
+                element.textContent = formatDate(dateStr);
+            }
+        });
     }
 </script>
 

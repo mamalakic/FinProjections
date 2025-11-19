@@ -1,7 +1,3 @@
-"""
-Budget Tracker - Flask Application
-Main application file with modular route structure
-"""
 from flask import Flask
 
 app = Flask(__name__)
@@ -15,6 +11,7 @@ from routes.api_projections import api_projections_bp
 from routes.api_details import api_details_bp
 from routes.api_settings import api_settings_bp
 from routes.api_investments import api_investments_bp
+from routes.api_wishlist import api_wishlist_bp
 
 app.register_blueprint(main_bp)
 app.register_blueprint(api_income_bp)
@@ -23,6 +20,7 @@ app.register_blueprint(api_projections_bp)
 app.register_blueprint(api_details_bp)
 app.register_blueprint(api_settings_bp)
 app.register_blueprint(api_investments_bp)
+app.register_blueprint(api_wishlist_bp)
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

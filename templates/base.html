@@ -838,6 +838,7 @@
             <li><a href="/income" hx-get="/income" hx-target="#main-content-area" hx-push-url="true" {% if request.path == '/income' %}class="active"{% endif %}><i class="ri-money-dollar-circle-line nav-icon"></i> Income</a></li>
             <li><a href="/expenses" hx-get="/expenses" hx-target="#main-content-area" hx-push-url="true" {% if request.path == '/expenses' %}class="active"{% endif %}><i class="ri-bank-card-line nav-icon"></i> Expenses</a></li>
             <li><a href="/investments" hx-get="/investments" hx-target="#main-content-area" hx-push-url="true" {% if request.path == '/investments' %}class="active"{% endif %}><i class="ri-stock-line nav-icon"></i> Investments</a></li>
+            <li><a href="/wishlist" hx-get="/wishlist" hx-target="#main-content-area" hx-push-url="true" {% if request.path == '/wishlist' %}class="active"{% endif %}><i class="ri-heart-line nav-icon"></i> Wishlist</a></li>
             <li><a href="/settings" hx-get="/settings" hx-target="#main-content-area" hx-push-url="true" {% if request.path == '/settings' %}class="active"{% endif %}><i class="ri-settings-3-line nav-icon"></i> Settings</a></li>
         </ul>
         
@@ -913,6 +914,9 @@
         // Global currency settings
         let currentCurrencySymbol = '{{ currency.symbol }}';
         let currentCurrencyCode = '{{ currency.code }}';
+        
+        // Global date format setting
+        let currentDateFormat = '{{ date_format if date_format else "DD/MM/YYYY" }}';
 
         // Utility functions
         function formatCurrency(amount) {
@@ -921,6 +925,61 @@
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
             });
+        }
+
+        function formatDate(dateString) {
+            // Parse the date string (handles ISO format, Date objects, etc.)
+            let date;
+            if (dateString instanceof Date) {
+                date = dateString;
+            } else if (typeof dateString === 'string') {
+                // Handle various input formats
+                date = new Date(dateString);
+            } else {
+                return dateString; // Return as-is if not a valid date
+            }
+            
+            // Check if date is valid
+            if (isNaN(date.getTime())) {
+                return dateString;
+            }
+            
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            
+            // Format based on user preference
+            switch (currentDateFormat) {
+                case 'DD/MM/YYYY':
+                    return `${day}/${month}/${year}`;
+                case 'YYYY-MM-DD':
+                    return `${year}-${month}-${day}`;
+                case 'MM/DD/YYYY':
+                default:
+                    return `${month}/${day}/${year}`;
+            }
+        }
+
+        function formatDateForInput(dateString) {
+            // Always return YYYY-MM-DD format for HTML date inputs
+            let date;
+            if (dateString instanceof Date) {
+                date = dateString;
+            } else if (typeof dateString === 'string') {
+                date = new Date(dateString);
+            } else {
+                return '';
+            }
+            
+            if (isNaN(date.getTime())) {
+                return '';
+            }
+            
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            
+            return `${year}-${month}-${day}`;
         }
 
         function showAlert(message, type = 'success') {
@@ -1010,6 +1069,38 @@
             })
             .catch(error => console.error('Error loading currency:', error));
 
+        // Load current date format on page load
+        fetch('/api/settings/date-format')
+            .then(response => response.json())
+            .then(data => {
+                currentDateFormat = data.format;
+                // Format all dates on the page after loading the format
+                formatAllDatesGlobal();
+            })
+            .catch(error => console.error('Error loading date format:', error));
+
+        // Global date formatter function
+        function formatAllDatesGlobal() {
+            document.querySelectorAll('.format-date').forEach(function(element) {
+                const dateStr = element.textContent.trim();
+                if (dateStr && dateStr !== 'Ongoing' && dateStr !== '-' && dateStr !== '') {
+                    element.textContent = formatDate(dateStr);
+                }
+            });
+        }
+
+        // Format dates on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            formatAllDatesGlobal();
+        });
+
+        // Also format dates after HTMX swaps
+        if (typeof htmx !== 'undefined') {
+            htmx.on('htmx:afterSwap', function() {
+                formatAllDatesGlobal();
+            });
+        }
+
         // Track HTMX swaps
         document.body.addEventListener('htmx:beforeSwap', function(event) {
             if (event.detail.target.id === 'main-content-area') {
@@ -1054,6 +1145,9 @@
                     } else if (typeof initializeInvestmentsPage === 'function' && document.getElementById('investmentChart')) {
                         console.log('Calling initializeInvestmentsPage');
                         initializeInvestmentsPage();
+                    } else if (typeof initializeWishlist === 'function' && document.getElementById('wishlistContainer')) {
+                        console.log('Calling initializeWishlist');
+                        initializeWishlist();
                     }
                     
                     // Reset flag

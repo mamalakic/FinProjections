@@ -20,6 +20,9 @@
         <h3 class="card-title">Financial Trends</h3>
     </div>
     <div class="card-body">
+        <div style="margin-bottom: 1rem; padding: 0.75rem; background: var(--light); border-radius: 8px; font-size: 0.875rem; color: var(--text-light);">
+            <i class="ri-information-line"></i> <strong>Tip:</strong> Click on any legend item below to show/hide that metric on the chart
+        </div>
         <canvas id="projectionChart" style="max-height: 400px;"></canvas>
     </div>
 </div>
@@ -124,69 +127,145 @@
             chart = null;
         }
 
+        // Prepare datasets with better styling - removed Total Income
+        const datasets = [
+            {
+                label: 'Total Expenses',
+                data: projections.map(p => p.total_expenses),
+                borderColor: '#ef4444',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                borderWidth: 3,
+                tension: 0.4,
+                fill: true,
+                hidden: false,
+                order: 2
+            },
+            {
+                label: 'Net Amount',
+                data: projections.map(p => p.net_amount),
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                borderWidth: 4,
+                tension: 0.4,
+                fill: true,
+                hidden: false,
+                order: 1,
+                pointRadius: 5,
+                pointHoverRadius: 7
+            },
+            {
+                label: 'Cumulative Balance',
+                data: projections.map(p => p.cumulative_balance),
+                borderColor: '#8b5cf6',
+                backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                borderWidth: 3,
+                tension: 0.4,
+                fill: true,
+                hidden: true, // Hidden by default to reduce clutter
+                order: 3,
+                borderDash: [5, 5] // Dashed line to differentiate
+            }
+        ];
+
         chart = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: projections.map(p => p.month),
-                datasets: [
-                    {
-                        label: 'Total Income',
-                        data: projections.map(p => p.total_income),
-                        borderColor: '#00C853',
-                        backgroundColor: 'rgba(0, 200, 83, 0.1)',
-                        borderWidth: 2,
-                        tension: 0.4,
-                        fill: true
-                    },
-                    {
-                        label: 'Total Expenses',
-                        data: projections.map(p => p.total_expenses),
-                        borderColor: '#FF3D71',
-                        backgroundColor: 'rgba(255, 61, 113, 0.1)',
-                        borderWidth: 2,
-                        tension: 0.4,
-                        fill: true
-                    },
-                    {
-                        label: 'Net Amount',
-                        data: projections.map(p => p.net_amount),
-                        borderColor: '#0066FF',
-                        backgroundColor: 'rgba(0, 102, 255, 0.1)',
-                        borderWidth: 2,
-                        tension: 0.4,
-                        fill: true
-                    },
-                    {
-                        label: 'Cumulative Balance',
-                        data: projections.map(p => p.cumulative_balance),
-                        borderColor: '#00C9A7',
-                        backgroundColor: 'rgba(0, 201, 167, 0.1)',
-                        borderWidth: 2,
-                        tension: 0.4,
-                        fill: true
-                    }
-                ]
+                datasets: datasets
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: true,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
                 plugins: {
                     legend: {
                         position: 'top',
+                        labels: {
+                            padding: 15,
+                            font: {
+                                size: 13,
+                                weight: '500'
+                            },
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            generateLabels: function(chart) {
+                                const original = Chart.defaults.plugins.legend.labels.generateLabels;
+                                const labels = original.call(this, chart);
+                                
+                                // Add visual indicator for hidden datasets
+                                labels.forEach(label => {
+                                    if (label.hidden) {
+                                        label.fontColor = '#999';
+                                        label.textDecoration = 'line-through';
+                                    }
+                                });
+                                
+                                return labels;
+                            }
+                        },
+                        onClick: function(e, legendItem, legend) {
+                            const index = legendItem.datasetIndex;
+                            const ci = legend.chart;
+                            const meta = ci.getDatasetMeta(index);
+                            
+                            // Toggle visibility
+                            meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
+                            
+                            ci.update();
+                        }
                     },
                     tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12,
+                        titleFont: {
+                            size: 14,
+                            weight: 'bold'
+                        },
+                        bodyFont: {
+                            size: 13
+                        },
+                        bodySpacing: 6,
                         callbacks: {
                             label: function(context) {
-                                return context.dataset.label + ': ' + formatCurrency(context.parsed.y);
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                label += formatCurrency(context.parsed.y);
+                                return label;
                             }
                         }
                     }
                 },
                 scales: {
                     y: {
+                        beginAtZero: false,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)',
+                            drawBorder: false
+                        },
                         ticks: {
+                            padding: 10,
+                            font: {
+                                size: 12
+                            },
                             callback: function(value) {
                                 return currentCurrencySymbol + value.toLocaleString();
+                            }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false,
+                            drawBorder: false
+                        },
+                        ticks: {
+                            padding: 10,
+                            font: {
+                                size: 12
                             }
                         }
                     }

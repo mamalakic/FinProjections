@@ -1,7 +1,7 @@
 """API routes for application settings"""
 from flask import Blueprint, request, jsonify
 from datetime import datetime
-from database import get_currency_settings, settings_collection
+from database import get_currency_settings, get_date_format, settings_collection
 
 api_settings_bp = Blueprint('api_settings', __name__, url_prefix='/api/settings')
 
@@ -69,5 +69,23 @@ def delete_trading212_settings():
         }}
     )
     return jsonify({'success': True})
+
+@api_settings_bp.route('/date-format', methods=['GET'])
+def get_date_format_setting():
+    date_format = get_date_format()
+    return jsonify({'format': date_format})
+
+@api_settings_bp.route('/date-format', methods=['PUT'])
+def update_date_format():
+    data = request.json
+    settings_collection.update_one(
+        {},
+        {'$set': {
+            'date_format': data['format'],
+            'updated_at': datetime.utcnow()
+        }},
+        upsert=True
+    )
+    return jsonify({'success': True, 'format': data['format']})
 
 
