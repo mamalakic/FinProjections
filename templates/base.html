@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Budget Tracker{% endblock %}</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo.png') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -81,6 +82,9 @@
             background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
             border-bottom: 2px solid var(--accent-gold);
             position: relative;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
         }
 
         .sidebar-brand::after {
@@ -91,6 +95,17 @@
             right: 0;
             height: 2px;
             background: linear-gradient(90deg, transparent, var(--accent-gold), transparent);
+        }
+
+        .sidebar-logo {
+            width: 50px;
+            height: 50px;
+            flex-shrink: 0;
+            filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.3));
+        }
+
+        .sidebar-brand-text {
+            flex: 1;
         }
 
         .sidebar-brand h1 {
@@ -788,6 +803,56 @@
             color: var(--primary) !important;
         }
 
+        /* Toggle Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 28px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: var(--transition-base);
+            border-radius: 28px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: var(--transition-base);
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--success);
+        }
+
+        input:focus + .slider {
+            box-shadow: 0 0 1px var(--success);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(22px);
+        }
+
         @media (max-width: 1024px) {
             .sidebar {
                 transform: translateX(-100%);
@@ -829,8 +894,11 @@
     <!-- Sidebar -->
     <aside class="sidebar">
         <div class="sidebar-brand">
-            <h1>財務銀行</h1>
-            <p>FinProjections Est. 2025</p>
+            <img src="{{ url_for('static', filename='img/logo.png') }}" alt="FinProjections Logo" class="sidebar-logo">
+            <div class="sidebar-brand-text">
+                <h1>財務銀行</h1>
+                <p>FinProjections Est. 2025</p>
+            </div>
         </div>
         
         <ul class="nav-links">
