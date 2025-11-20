@@ -2,6 +2,14 @@
 
 Flask-based budgeting app for income and expenses tracking
 
+## Screenshots
+
+### Dashboard
+![Dashboard](docs/screenshots/dashboard.png)
+
+### Income Management
+![Income Management](docs/screenshots/income-management.png)
+
 ## Installation
 
 ### Prerequisites
