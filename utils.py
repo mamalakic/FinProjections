@@ -67,7 +67,8 @@ def calculate_monthly_projections(months=12):
     """Calculate financial projections for the next N months"""
     from database import (
         recurring_income_collection, one_time_income_collection,
-        recurring_expense_collection, one_time_expense_collection, db, settings_collection
+        recurring_expense_collection, one_time_expense_collection, db, settings_collection,
+        get_data_filter
     )
     
     projections = []
@@ -80,8 +81,12 @@ def calculate_monthly_projections(months=12):
     # Start from the first day of the current month
     current_month_start = today.replace(day=1)
     
+    # Get data filter for demo mode
+    data_filter = get_data_filter()
+    
     # Get investment portfolios
-    investment_portfolios = list(db['investment_portfolio'].find({'active': True}))
+    investment_filter = {**data_filter, 'active': True}
+    investment_portfolios = list(db['investment_portfolio'].find(investment_filter))
     
     for i in range(months):
         month_start = current_month_start + relativedelta(months=i)
@@ -92,7 +97,8 @@ def calculate_monthly_projections(months=12):
         month_end_dt = datetime.combine(month_end, datetime.max.time())
         
         # Calculate recurring income (exclude upcoming items)
-        recurring_incomes = list(recurring_income_collection.find({'active': True, 'upcoming': {'$ne': True}}))
+        income_filter = {**data_filter, 'active': True, 'upcoming': {'$ne': True}}
+        recurring_incomes = list(recurring_income_collection.find(income_filter))
         total_recurring_income = 0
         for income in recurring_incomes:
             start_date = income['start_date'] if isinstance(income['start_date'], datetime) else datetime.fromisoformat(income['start_date'])

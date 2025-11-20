@@ -1,7 +1,14 @@
 """API routes for application settings"""
 from flask import Blueprint, request, jsonify
 from datetime import datetime
-from database import get_currency_settings, get_date_format, settings_collection
+from database import (
+    get_currency_settings, 
+    get_date_format, 
+    settings_collection,
+    is_demo_mode_enabled,
+    generate_demo_data,
+    clear_demo_data
+)
 
 api_settings_bp = Blueprint('api_settings', __name__, url_prefix='/api/settings')
 
@@ -87,5 +94,59 @@ def update_date_format():
         upsert=True
     )
     return jsonify({'success': True, 'format': data['format']})
+
+@api_settings_bp.route('/demo-mode', methods=['GET'])
+def get_demo_mode():
+    """Get demo mode status"""
+    enabled = is_demo_mode_enabled()
+    return jsonify({'enabled': enabled})
+
+@api_settings_bp.route('/demo-mode', methods=['PUT'])
+def update_demo_mode():
+    """Enable or disable demo mode"""
+    data = request.json
+    enabled = data.get('enabled', False)
+    
+    try:
+        if enabled:
+            # Generate demo data
+            stats = generate_demo_data()
+            settings_collection.update_one(
+                {},
+                {'$set': {
+                    'demo_mode': True,
+                    'demo_mode_enabled_at': datetime.utcnow(),
+                    'updated_at': datetime.utcnow()
+                }},
+                upsert=True
+            )
+            return jsonify({
+                'success': True, 
+                'enabled': True,
+                'message': 'Demo mode enabled with sample data',
+                'stats': stats
+            })
+        else:
+            # Clear demo data
+            clear_demo_data()
+            settings_collection.update_one(
+                {},
+                {'$set': {
+                    'demo_mode': False,
+                    'demo_mode_disabled_at': datetime.utcnow(),
+                    'updated_at': datetime.utcnow()
+                }},
+                upsert=True
+            )
+            return jsonify({
+                'success': True, 
+                'enabled': False,
+                'message': 'Demo mode disabled and demo data cleared'
+            })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 

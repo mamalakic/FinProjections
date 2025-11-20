@@ -1,6 +1,6 @@
 """Main page routes"""
 from flask import Blueprint, render_template, request
-from database import get_currency_settings, get_date_format
+from database import get_currency_settings, get_date_format, get_data_filter
 from utils import calculate_monthly_projections
 
 main_bp = Blueprint('main', __name__)
@@ -23,8 +23,9 @@ def dashboard():
 def income():
     from database import recurring_income_collection, one_time_income_collection
     
-    recurring = list(recurring_income_collection.find().sort('created_at', -1))
-    one_time = list(one_time_income_collection.find().sort('date', -1))
+    data_filter = get_data_filter()
+    recurring = list(recurring_income_collection.find(data_filter).sort('created_at', -1))
+    one_time = list(one_time_income_collection.find(data_filter).sort('date', -1))
     currency = get_currency_settings()
     date_format = get_date_format()
     template = 'income/income_partial.html' if is_htmx_request() else 'income/income.html'
@@ -34,8 +35,9 @@ def income():
 def expenses():
     from database import recurring_expense_collection, one_time_expense_collection
     
-    recurring = list(recurring_expense_collection.find().sort('created_at', -1))
-    one_time = list(one_time_expense_collection.find().sort('date', -1))
+    data_filter = get_data_filter()
+    recurring = list(recurring_expense_collection.find(data_filter).sort('created_at', -1))
+    one_time = list(one_time_expense_collection.find(data_filter).sort('date', -1))
     currency = get_currency_settings()
     date_format = get_date_format()
     template = 'expenses/expenses_partial.html' if is_htmx_request() else 'expenses/expenses.html'
@@ -52,7 +54,8 @@ def settings():
 def wishlist():
     from database import wishlist_collection
     
-    items = list(wishlist_collection.find().sort([('purchased', 1), ('priority', 1), ('created_at', -1)]))
+    data_filter = get_data_filter()
+    items = list(wishlist_collection.find(data_filter).sort([('purchased', 1), ('priority', 1), ('created_at', -1)]))
     currency = get_currency_settings()
     date_format = get_date_format()
     template = 'wishlist/wishlist_partial.html' if is_htmx_request() else 'wishlist/wishlist.html'

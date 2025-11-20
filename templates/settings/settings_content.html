@@ -1,3 +1,30 @@
+<!-- Demo Mode Settings -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Demo Mode</h3>
+    </div>
+    <div class="card-body">
+        <div style="margin-bottom: 1.5rem; padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">
+            <p style="margin: 0; color: var(--text-light); font-size: 0.9rem;">
+                <i class="ri-information-line"></i> Demo mode generates sample data to showcase the application. 
+                This data is separate from your actual data and can be toggled on/off at any time.
+            </p>
+        </div>
+        
+        <div id="demoModeStatus" style="margin-bottom: 1.5rem; padding: 1rem; border-radius: 8px; display: none;">
+            <!-- Status will be populated by JavaScript -->
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <label class="form-label" style="margin: 0;">Enable Demo Mode</label>
+            <label class="switch">
+                <input type="checkbox" id="demoModeToggle">
+                <span class="slider"></span>
+            </label>
+        </div>
+    </div>
+</div>
+
 <!-- Currency Settings -->
 <div class="card">
     <div class="card-header">
@@ -98,9 +125,10 @@
 </div>
 
 <script>
-    // Load API status on page load
+    // Load API status and demo mode status on page load
     document.addEventListener('DOMContentLoaded', function() {
         loadApiStatus();
+        loadDemoModeStatus();
     });
 
     // Currency Form
@@ -288,4 +316,89 @@
             console.error(error);
         });
     }
+
+    // Demo Mode Functions
+    function loadDemoModeStatus() {
+        fetch('/api/settings/demo-mode')
+            .then(response => response.json())
+            .then(result => {
+                const toggle = document.getElementById('demoModeToggle');
+                const statusDiv = document.getElementById('demoModeStatus');
+                
+                toggle.checked = result.enabled;
+                
+                if (result.enabled) {
+                    statusDiv.style.display = 'block';
+                    statusDiv.style.background = 'var(--success-light, #d4edda)';
+                    statusDiv.style.borderLeft = '4px solid var(--success)';
+                    statusDiv.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="ri-checkbox-circle-fill" style="color: var(--success); font-size: 1.5rem;"></i>
+                            <div>
+                                <strong style="color: var(--success);">Demo Mode Active</strong>
+                                <p style="margin: 0.25rem 0 0 0; font-size: 0.85rem; color: var(--text-light);">
+                                    Sample data is currently being displayed. Your actual data is safe and unaffected.
+                                </p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    statusDiv.style.display = 'none';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading demo mode status:', error);
+            });
+    }
+
+    // Demo Mode Toggle Handler
+    document.getElementById('demoModeToggle').addEventListener('change', function(e) {
+        const enabled = e.target.checked;
+        const confirmMessage = enabled 
+            ? 'Enable demo mode? This will generate sample data for demonstration purposes.'
+            : 'Disable demo mode? This will remove all demo data from the application.';
+        
+        if (!confirm(confirmMessage)) {
+            // Revert the toggle if user cancels
+            e.target.checked = !enabled;
+            return;
+        }
+
+        // Show loading message
+        showAlert(enabled ? 'Generating demo data...' : 'Clearing demo data...', 'info');
+
+        fetch('/api/settings/demo-mode', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled: enabled })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                showAlert(result.message, 'success');
+                loadDemoModeStatus();
+                
+                // Reload the page after a short delay to show the new data
+                setTimeout(() => {
+                    if (window.location.pathname === '/settings') {
+                        // If we're on settings page, just reload status
+                        loadDemoModeStatus();
+                    } else {
+                        // Otherwise reload the page
+                        location.reload();
+                    }
+                }, 1500);
+            } else {
+                showAlert('Error: ' + result.error, 'error');
+                // Revert the toggle on error
+                e.target.checked = !enabled;
+            }
+        })
+        .catch(error => {
+            showAlert('Error updating demo mode', 'error');
+            console.error(error);
+            // Revert the toggle on error
+            e.target.checked = !enabled;
+        });
+    });
 </script>
