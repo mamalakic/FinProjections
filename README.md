@@ -45,12 +45,20 @@ Flask-based budgeting app for income and expenses tracking
    pip install -r requirements.txt
    ```
 
-5. **Run the application**
+5. **Configure Database (Optional)**
+   
+   By default, the app uses a local MongoDB instance at `mongodb://localhost:27017/`.
+   If a MONGODB_URL is detected in .env, the program will automatically use that connection. You'll see a green "Online" indicator in the sidebar.
+
+6. **Run the application**
+   
    ```bash
+   net start MongoDB
    python app.py
    ```
 
-6. **Open your browser**
+
+7. **Open your browser**
    
    Navigate to: `http://localhost:5000`
 

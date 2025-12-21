@@ -1,9 +1,15 @@
 """Database connection and collections"""
 from pymongo import MongoClient
 from datetime import datetime
+import os
 
-mongo_client = MongoClient('mongodb://localhost:27017/')
+# Check for MONGODB_URL in environment variables
+mongodb_url = os.getenv('MONGODB_URL', 'mongodb://localhost:27017/')
+mongo_client = MongoClient(mongodb_url)
 db = mongo_client['budget_tracker']
+
+# Detect if using online MongoDB (not localhost)
+is_online_db = not ('localhost' in mongodb_url.lower() or '127.0.0.1' in mongodb_url)
 
 settings_collection = db['settings']
 recurring_income_collection = db['recurring_income']

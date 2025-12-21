@@ -5,7 +5,8 @@ from bson import ObjectId
 from database import (
     recurring_income_collection,
     get_currency_settings,
-    get_date_format
+    get_date_format,
+    is_online_db
 )
 
 # Create a separate collection for investments
@@ -33,7 +34,8 @@ def investments():
                          portfolios=portfolios, 
                          contributions=contributions,
                          currency=currency,
-                         date_format=date_format)
+                         date_format=date_format,
+                         is_online_db=is_online_db)
 
 # Portfolio Management
 @api_investments_bp.route('/api/investment-portfolio', methods=['GET'])
