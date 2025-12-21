@@ -203,6 +203,42 @@
             background: rgba(0, 0, 0, 0.2);
         }
 
+        .db-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1rem;
+            background: rgba(44, 95, 45, 0.2);
+            border: 1px solid rgba(44, 95, 45, 0.4);
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #4ade80;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .db-status-indicator {
+            width: 10px;
+            height: 10px;
+            background: #4ade80;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #4ade80;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+                box-shadow: 0 0 8px #4ade80;
+            }
+            50% {
+                opacity: 0.7;
+                box-shadow: 0 0 12px #4ade80;
+            }
+        }
+
         /* Main Content Area */
         .main-content {
             margin-left: var(--sidebar-width);
@@ -261,11 +297,11 @@
 
         /* Container */
         .container {
-            padding: 2rem;
-            flex: 1;
-            /* Smooth page transitions */
-            animation: fadeIn var(--transition-base);
-        }
+    padding: 2rem;
+    /* Remove flex: 1; and add: */
+    /* Smooth page transitions */
+    animation: fadeIn var(--transition-base);
+}
 
         @keyframes fadeIn {
             from {
@@ -616,6 +652,101 @@
             color: var(--dark);
         }
 
+        /* Slide Panel Styles */
+        .slide-panel {
+            position: sticky;
+            top: 20px;
+            width: 450px;
+            max-height: calc(100vh - 40px);
+            background: white;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            z-index: 100;
+            display: none;
+            flex-direction: column;
+            border: 3px solid var(--border);
+            border-radius: 0;
+            align-self: flex-start;
+        }
+
+        .slide-panel.active {
+            display: flex;
+            animation: fadeInScale 0.3s ease-out;
+        }
+
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .slide-panel-overlay {
+            display: none;
+        }
+
+        .slide-panel-overlay.active {
+            display: none;
+        }
+
+        .slide-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem 2rem;
+            border-bottom: 3px solid var(--border);
+            background: linear-gradient(180deg, rgba(212, 175, 55, 0.1) 0%, rgba(212, 175, 55, 0.02) 100%);
+        }
+
+        .slide-panel-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--dark);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .slide-panel-body {
+            padding: 2rem;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        @media (max-width: 1200px) {
+            .slide-panel {
+                width: 400px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .slide-panel {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                width: 100%;
+                max-height: 100vh;
+                border-radius: 0;
+                z-index: 10000;
+            }
+            
+            .slide-panel.active {
+                animation: slideUpMobile 0.3s ease-out;
+            }
+            
+            @keyframes slideUpMobile {
+                from {
+                    transform: translateY(100%);
+                }
+                to {
+                    transform: translateY(0);
+                }
+            }
+        }
+
         .grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -911,6 +1042,12 @@
         </ul>
         
         <div class="sidebar-footer">
+            {% if is_online_db %}
+            <div class="db-status">
+                <span class="db-status-indicator"></span>
+                <span>Online</span>
+            </div>
+            {% endif %}
             <button class="btn btn-secondary" onclick="openCurrencyModal()" style="width: 100%; justify-content: center; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2);">
                 <i class="ri-exchange-dollar-line"></i>
                 <span id="currentCurrency">{{ currency.symbol }} {{ currency.code }}</span>
@@ -1061,21 +1198,53 @@
             }, 3000);
         }
 
-        // Modal functions
+        // Modal functions (keeping for currency selector)
         function openModal(modalId) {
-            document.getElementById(modalId).classList.add('active');
+            const modal = document.getElementById(modalId);
+            modal.classList.add('active');
+            // Prevent body scroll when modal is open
+            document.body.style.overflow = 'hidden';
+            // Ensure modal content is scrolled to top
+            const modalBody = modal.querySelector('.modal-body');
+            if (modalBody) {
+                modalBody.scrollTop = 0;
+            }
         }
 
         function closeModal(modalId) {
             document.getElementById(modalId).classList.remove('active');
+            // Re-enable body scroll when modal is closed
+            document.body.style.overflow = '';
         }
 
         // Close modal when clicking outside
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('modal')) {
                 e.target.classList.remove('active');
+                // Re-enable body scroll when modal is closed
+                document.body.style.overflow = '';
             }
         });
+
+        // Slide Panel functions
+        function openSlidePanel(panelId) {
+            const panel = document.getElementById(panelId);
+            if (panel) {
+                panel.classList.add('active');
+                // Scroll panel content to top
+                const panelBody = panel.querySelector('.slide-panel-body');
+                if (panelBody) {
+                    panelBody.scrollTop = 0;
+                }
+            }
+        }
+
+        function closeSlidePanel(panelId) {
+            const panel = document.getElementById(panelId);
+            if (panel) {
+                panel.classList.remove('active');
+            }
+        }
 
         // Currency functions
         function openCurrencyModal() {

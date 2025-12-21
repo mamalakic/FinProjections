@@ -1,11 +1,13 @@
-<!-- Recurring Expenses Section -->
-<div class="card">
+<div style="display: flex; gap: 1.5rem; position: relative;">
+    <div style="flex: 1; min-width: 0; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);">
+        <!-- Recurring Expenses Section -->
+        <div class="card">
     <div class="card-header">
         <h3 class="card-title">Recurring Expenses</h3>
     </div>
 
     {% if recurring %}
-    <div style="overflow-x: auto;">
+    <div style="overflow-x: hidden;">
         <table class="table">
             <thead>
                 <tr>
@@ -47,16 +49,16 @@
     {% else %}
     <p style="text-align: center; color: var(--text-light); padding: 2rem;">No recurring expenses added yet. Click the button above to add your first recurring expense.</p>
     {% endif %}
-</div>
+        </div>
 
-<!-- One-Time Expenses Section -->
-<div class="card">
+        <!-- One-Time Expenses Section -->
+        <div class="card">
     <div class="card-header">
         <h3 class="card-title">One-Time Expenses</h3>
     </div>
 
     {% if one_time %}
-    <div style="overflow-x: auto;">
+    <div style="overflow-x: hidden;">
         <table class="table">
             <thead>
                 <tr>
@@ -88,16 +90,18 @@
     {% else %}
     <p style="text-align: center; color: var(--text-light); padding: 2rem;">No one-time expenses recorded yet. Click the button above to add groceries, shopping, or other one-time expenses.</p>
     {% endif %}
-</div>
-
-<!-- Recurring Expense Modal -->
-<div id="recurringModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3 class="modal-title" id="recurringModalTitle">Add Recurring Expense</h3>
-            <button class="close-btn" onclick="closeModal('recurringModal')">&times;</button>
         </div>
-        <div class="modal-body">
+    </div>
+
+    <!-- Slide Panels Container -->
+    <div style="flex-shrink: 0; position: sticky; top: 100px; align-self: flex-start; max-height: calc(100vh - 120px); overflow-y: auto;">
+            <!-- Recurring Expense Slide Panel -->
+    <div id="recurringPanel" class="slide-panel">
+        <div class="slide-panel-header">
+            <h3 class="slide-panel-title" id="recurringPanelTitle">Add Recurring Expense</h3>
+            <button class="close-btn" onclick="closeSlidePanel('recurringPanel')">&times;</button>
+        </div>
+        <div class="slide-panel-body">
             <form id="recurringForm" onsubmit="saveRecurringExpense(event)">
                 <input type="hidden" id="recurringId">
                 
@@ -169,22 +173,20 @@
                 </div>
 
                 <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-                    <button type="button" class="btn" onclick="closeModal('recurringModal')" style="background: var(--border);">Cancel</button>
+                    <button type="button" class="btn" onclick="closeSlidePanel('recurringPanel')" style="background: var(--border);">Cancel</button>
                     <button type="submit" class="btn btn-primary">Save</button>
                 </div>
             </form>
         </div>
-    </div>
-</div>
-
-<!-- One-Time Expense Modal -->
-<div id="oneTimeModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3 class="modal-title" id="oneTimeModalTitle">Add One-Time Expense</h3>
-            <button class="close-btn" onclick="closeModal('oneTimeModal')">&times;</button>
         </div>
-        <div class="modal-body">
+
+        <!-- One-Time Expense Slide Panel -->
+        <div id="oneTimePanel" class="slide-panel">
+    <div class="slide-panel-header">
+        <h3 class="slide-panel-title" id="oneTimePanelTitle">Add One-Time Expense</h3>
+        <button class="close-btn" onclick="closeSlidePanel('oneTimePanel')">&times;</button>
+    </div>
+    <div class="slide-panel-body">
             <form id="oneTimeForm" onsubmit="saveOneTimeExpense(event)">
                 <input type="hidden" id="oneTimeId">
                 
@@ -234,11 +236,12 @@
                 </div>
 
                 <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-                    <button type="button" class="btn" onclick="closeModal('oneTimeModal')" style="background: var(--border);">Cancel</button>
+                    <button type="button" class="btn" onclick="closeSlidePanel('oneTimePanel')" style="background: var(--border);">Cancel</button>
                     <button type="submit" class="btn btn-success">Save</button>
                 </div>
             </form>
         </div>
+    </div>
     </div>
 </div>
 
@@ -262,20 +265,20 @@
 
     // Recurring Expense Functions
     function openAddRecurringModal() {
-        document.getElementById('recurringModalTitle').textContent = 'Add Recurring Expense';
+        document.getElementById('recurringPanelTitle').textContent = 'Add Recurring Expense';
         document.getElementById('recurringForm').reset();
         document.getElementById('recurringId').value = '';
         document.getElementById('recurringStartDate').valueAsDate = new Date();
         document.getElementById('recurringActive').checked = true;
         document.getElementById('recurringUpcoming').checked = false;
-        openModal('recurringModal');
+        openSlidePanel('recurringPanel');
     }
 
     function editRecurringExpense(id) {
         fetch(`/api/recurring-expense/${id}`)
             .then(response => response.json())
             .then(data => {
-                document.getElementById('recurringModalTitle').textContent = 'Edit Recurring Expense';
+                document.getElementById('recurringPanelTitle').textContent = 'Edit Recurring Expense';
                 document.getElementById('recurringId').value = data.id;
                 document.getElementById('recurringName').value = data.name;
                 document.getElementById('recurringAmount').value = data.amount;
@@ -286,7 +289,7 @@
                 document.getElementById('recurringPayday').value = data.payday || '';
                 document.getElementById('recurringActive').checked = data.active;
                 document.getElementById('recurringUpcoming').checked = data.upcoming || false;
-                openModal('recurringModal');
+                openSlidePanel('recurringPanel');
             });
     }
 
@@ -319,7 +322,7 @@
         .then(result => {
             if (result.success) {
                 showAlert(id ? 'Recurring expense updated!' : 'Recurring expense added!', 'success');
-                closeModal('recurringModal');
+                closeSlidePanel('recurringPanel');
                 setTimeout(() => location.reload(), 1000);
             }
         })
@@ -348,19 +351,19 @@
 
     // One-Time Expense Functions
     function openAddOneTimeModal() {
-        document.getElementById('oneTimeModalTitle').textContent = 'Add One-Time Expense';
+        document.getElementById('oneTimePanelTitle').textContent = 'Add One-Time Expense';
         document.getElementById('oneTimeForm').reset();
         document.getElementById('oneTimeId').value = '';
         document.getElementById('oneTimeDate').valueAsDate = new Date();
         document.getElementById('oneTimeUpcoming').checked = false;
-        openModal('oneTimeModal');
+        openSlidePanel('oneTimePanel');
     }
 
     function editOneTimeExpense(id) {
         fetch(`/api/one-time-expense/${id}`)
             .then(response => response.json())
             .then(data => {
-                document.getElementById('oneTimeModalTitle').textContent = 'Edit One-Time Expense';
+                document.getElementById('oneTimePanelTitle').textContent = 'Edit One-Time Expense';
                 document.getElementById('oneTimeId').value = data.id;
                 document.getElementById('oneTimeName').value = data.name;
                 document.getElementById('oneTimeAmount').value = data.amount;
@@ -368,7 +371,7 @@
                 document.getElementById('oneTimeCategory').value = data.category;
                 document.getElementById('oneTimeNotes').value = data.notes || '';
                 document.getElementById('oneTimeUpcoming').checked = data.upcoming || false;
-                openModal('oneTimeModal');
+                openSlidePanel('oneTimePanel');
             });
     }
 
@@ -397,7 +400,7 @@
         .then(result => {
             if (result.success) {
                 showAlert(id ? 'One-time expense updated!' : 'One-time expense added!', 'success');
-                closeModal('oneTimeModal');
+                closeSlidePanel('oneTimePanel');
                 setTimeout(() => location.reload(), 1000);
             }
         })
