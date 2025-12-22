@@ -6,7 +6,9 @@
 
 {% block topbar_actions %}
 <button class="btn btn-primary" onclick="openAddPortfolioModal()"><i class="ri-add-line"></i> Add Portfolio</button>
-<button class="btn btn-success" onclick="openAddContributionModal()"><i class="ri-add-circle-line"></i> Add Contribution</button>
+<button class="btn btn-success" onclick="openAddStockModal()"><i class="ri-add-circle-line"></i> Add Stock</button>
+<button class="btn btn-info" onclick="openImportCSVModal()"><i class="ri-upload-line"></i> Import CSV</button>
+<button class="btn btn-warning" onclick="openSyncModal()"><i class="ri-refresh-line"></i> Sync Trading212</button>
 {% endblock %}
 
 {% block content %}

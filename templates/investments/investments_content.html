@@ -92,6 +92,39 @@
         </select>
     </div>
     <div class="card-body">
+        <!-- DCA Slider Controls -->
+        <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+            <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                <label style="font-weight: 600; color: var(--text-primary); margin: 0;">
+                    DCA Monthly Contribution:
+                </label>
+                <div style="flex: 1; min-width: 200px; max-width: 400px;">
+                    <input type="range" id="dcaSlider" min="0" max="5000" step="50" value="0" 
+                           style="width: 100%; cursor: pointer;">
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <input type="number" id="dcaInput" min="0" max="50000" step="50" value="0" 
+                           class="form-control" style="width: 120px; text-align: right; font-family: var(--font-mono); font-weight: 600;">
+                    <span style="color: var(--text-light);">/ month</span>
+                </div>
+            </div>
+            <div id="dcaProjection" style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border-color); display: none;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; font-size: 0.9rem;">
+                    <div>
+                        <span style="color: var(--text-light);">Total Contributed:</span>
+                        <strong id="dcaTotalContributed" style="color: var(--primary); font-family: var(--font-mono); margin-left: 0.5rem;">$0</strong>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-light);">Projected Value:</span>
+                        <strong id="dcaProjectedValue" style="color: var(--success); font-family: var(--font-mono); margin-left: 0.5rem;">$0</strong>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-light);">Estimated Gains:</span>
+                        <strong id="dcaEstimatedGains" style="color: var(--success); font-family: var(--font-mono); margin-left: 0.5rem;">$0</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
         <canvas id="investmentChart" style="max-height: 400px;"></canvas>
     </div>
 </div>
@@ -542,77 +575,196 @@
         });
     }
 
+    // Store the last fetched data to avoid unnecessary API calls
+    let lastFetchedData = null;
+    let lastFetchedMonths = 12;
+
     // Load Investment Chart
-    function loadInvestmentChart(months) {
+    function loadInvestmentChart(months, forceRefresh = false) {
+        const dcaAmount = parseFloat(document.getElementById('dcaSlider').value) || 0;
+        
+        // If we already have data for this month count and not forcing refresh, just update the chart
+        if (!forceRefresh && lastFetchedData && lastFetchedMonths === months) {
+            updateChartWithDCA(lastFetchedData, months, dcaAmount);
+            return;
+        }
+        
         fetch(`/api/investment-projections?months=${months}`)
             .then(response => response.json())
             .then(data => {
-                const chartElement = document.getElementById('investmentChart');
-                if (!chartElement) {
-                    console.error('Investment chart canvas element not found');
-                    return;
-                }
-                
-                const ctx = chartElement.getContext('2d');
-                
-                // Destroy existing chart if it exists
-                if (investmentChart) {
-                    try {
-                        investmentChart.destroy();
-                    } catch (e) {
-                        console.log('Error destroying chart:', e);
-                    }
-                    investmentChart = null;
-                }
+                lastFetchedData = data;
+                lastFetchedMonths = months;
+                updateChartWithDCA(data, months, dcaAmount);
+            });
+    }
+    
+    // Separate function to update chart with DCA calculations
+    function updateChartWithDCA(data, months, dcaAmount) {
+        const chartElement = document.getElementById('investmentChart');
+        if (!chartElement) {
+            console.error('Investment chart canvas element not found');
+            return;
+        }
+        
+        // Calculate DCA projections if DCA amount is set
+        let dcaData = [];
+        let totalContributed = 0;
+        let avgReturnRate = 0.07; // Default 7% annual return
+        
+        // Calculate average return rate from portfolios
+        if (data.length > 1 && data[0].value > 0) {
+            const initialValue = data[0].value;
+            const finalValue = data[data.length - 1].value;
+            const totalMonths = data.length;
+            if (initialValue > 0 && finalValue > initialValue) {
+                const totalReturn = (finalValue / initialValue) - 1;
+                avgReturnRate = Math.pow(1 + totalReturn, 12 / totalMonths) - 1;
+            }
+        }
+        
+        const monthlyReturnRate = Math.pow(1 + avgReturnRate, 1/12) - 1;
+        
+        if (dcaAmount > 0) {
+            let dcaValue = 0;
+            for (let i = 0; i < months; i++) {
+                dcaValue = (dcaValue + dcaAmount) * (1 + monthlyReturnRate);
+                totalContributed += dcaAmount;
+                dcaData.push(dcaValue);
+            }
+            
+            // Update DCA projection info
+            const projectionDiv = document.getElementById('dcaProjection');
+            const finalDcaValue = dcaData[dcaData.length - 1];
+            const estimatedGains = finalDcaValue - totalContributed;
+            
+            document.getElementById('dcaTotalContributed').textContent = formatCurrency(totalContributed);
+            document.getElementById('dcaProjectedValue').textContent = formatCurrency(finalDcaValue);
+            document.getElementById('dcaEstimatedGains').textContent = formatCurrency(estimatedGains);
+            
+            // Update gains color
+            const gainsElement = document.getElementById('dcaEstimatedGains');
+            gainsElement.style.color = estimatedGains >= 0 ? 'var(--success)' : 'var(--danger)';
+            
+            projectionDiv.style.display = 'block';
+        } else {
+            document.getElementById('dcaProjection').style.display = 'none';
+        }
 
-                investmentChart = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: data.map((d, i) => `Month ${i + 1}`),
-                        datasets: [{
-                            label: 'Portfolio Value',
-                            data: data.map(d => d.value),
-                            borderColor: '#2C5F2D',
-                            backgroundColor: 'rgba(44, 95, 45, 0.1)',
-                            borderWidth: 3,
-                            tension: 0.4,
-                            fill: true
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: true,
-                        plugins: {
-                            legend: {
-                                display: false
-                            },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        return 'Value: ' + formatCurrency(context.parsed.y);
-                                    }
+        // Prepare datasets
+        const datasets = [{
+            label: 'Portfolio Value',
+            data: data.map(d => d.value),
+            borderColor: '#2C5F2D',
+            backgroundColor: 'rgba(44, 95, 45, 0.1)',
+            borderWidth: 3,
+            tension: 0.4,
+            fill: true,
+            order: 2
+        }];
+        
+        // Add DCA dataset if active
+        if (dcaAmount > 0 && dcaData.length > 0) {
+            datasets.push({
+                label: 'DCA Projection',
+                data: dcaData,
+                borderColor: '#4A90E2',
+                backgroundColor: 'rgba(74, 144, 226, 0.1)',
+                borderWidth: 3,
+                tension: 0.4,
+                fill: true,
+                borderDash: [5, 5],
+                order: 1
+            });
+        }
+
+        // Update existing chart instead of destroying and recreating
+        if (investmentChart) {
+            investmentChart.data.labels = data.map((d, i) => `Month ${i + 1}`);
+            investmentChart.data.datasets = datasets;
+            investmentChart.options.plugins.legend.display = dcaAmount > 0;
+            investmentChart.update('none'); // 'none' mode = no animation, prevents scroll jump
+        } else {
+            // Create chart for the first time
+            const ctx = chartElement.getContext('2d');
+            investmentChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map((d, i) => `Month ${i + 1}`),
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: dcaAmount > 0,
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 15,
+                                font: {
+                                    size: 12
                                 }
                             }
                         },
-                        scales: {
-                            y: {
-                                ticks: {
-                                    callback: function(value) {
-                                        return currentCurrencySymbol + value.toLocaleString();
-                                    }
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.dataset.label || '';
+                                    return label + ': ' + formatCurrency(context.parsed.y);
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            ticks: {
+                                callback: function(value) {
+                                    return currentCurrencySymbol + value.toLocaleString();
                                 }
                             }
                         }
                     }
-                });
+                }
             });
+        }
     }
 
     // Projection months selector
     document.getElementById('projectionMonths').addEventListener('change', function(e) {
-        loadInvestmentChart(parseInt(e.target.value));
+        loadInvestmentChart(parseInt(e.target.value), true); // Force refresh when changing months
     });
 
+    // DCA Slider and Input synchronization
+    const dcaSlider = document.getElementById('dcaSlider');
+    const dcaInput = document.getElementById('dcaInput');
+    
+    dcaSlider.addEventListener('input', function(e) {
+        const value = parseFloat(e.target.value);
+        dcaInput.value = value;
+        const months = parseInt(document.getElementById('projectionMonths').value);
+        loadInvestmentChart(months, false); // Don't force refresh, use cached data
+    });
+    
+    // Debounce the input to avoid too many redraws
+    let dcaInputTimeout;
+    dcaInput.addEventListener('input', function(e) {
+        clearTimeout(dcaInputTimeout);
+        
+        let value = parseFloat(e.target.value) || 0;
+        // Clamp value to reasonable range
+        value = Math.max(0, Math.min(50000, value));
+        
+        // Update slider if value is within slider range
+        if (value <= 5000) {
+            dcaSlider.value = value;
+        }
+        
+        dcaInputTimeout = setTimeout(function() {
+            const months = parseInt(document.getElementById('projectionMonths').value);
+            loadInvestmentChart(months, false); // Don't force refresh, use cached data
+        }, 300);
+    });
     // Stock Holdings Functions
     let allStocks = [];
     let allPortfolios = [];
